@@ -119,6 +119,23 @@
             </div>
         </div>
 
+        <!-- YouTube API Settings -->
+        <div class="mb-4 border-2 border-red-900 bg-obs-light p-3 rounded-lg shadow-[0_0_10px_rgba(220,38,38,0.2)]">
+            <h2 class="font-semibold mb-2 flex items-center gap-2 text-red-400">
+                <input type="checkbox" id="toggleYoutube" onchange="updateVisibility('youtubeWidget', this.checked)" class="accent-red-500"> 
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                YouTube Sub Counter
+            </h2>
+            <div class="space-y-2 text-sm">
+                <input type="password" id="ytApiKey" placeholder="YouTube API Key" class="w-full bg-obs-dark border border-gray-600 focus:border-red-500 outline-none rounded p-1 mb-1 text-white transition-colors">
+                <input type="text" id="ytChannelId" placeholder="Channel ID (UC...)" class="w-full bg-obs-dark border border-gray-600 focus:border-red-500 outline-none rounded p-1 mb-2 text-white transition-colors">
+                <button onclick="startYoutubeTracker()" class="w-full bg-red-600 hover:bg-red-700 text-white rounded p-2 font-semibold transition-colors flex items-center justify-center gap-2">
+                    Connect & Track
+                </button>
+                <p class="text-[10px] text-gray-400 mt-1 leading-tight">Data diperbarui setiap 60 detik untuk menghemat kuota API Anda. Masukkan Key dan ID, lalu klik tombol di atas.</p>
+            </div>
+        </div>
+
         <!-- Copy URL Helper -->
         <div class="mt-6 pt-4 border-t border-gray-700">
             <button onclick="copyUrlForObs()" class="w-full bg-gray-700 hover:bg-gray-600 text-white rounded p-2 text-sm flex items-center justify-center gap-2 transition-colors">
@@ -145,6 +162,17 @@
         <div id="clockWidget" class="absolute top-8 right-8 widget-container px-6 py-3 rounded-2xl shadow-lg transition-opacity duration-300">
             <div id="clockTime" class="font-bold text-5xl tracking-wider text-shadow" style="font-size: 3rem;">00:00:00</div>
             <div id="clockDate" class="text-right text-gray-300 text-sm mt-1 uppercase tracking-widest font-semibold">Senin, 1 Jan</div>
+        </div>
+
+        <!-- YouTube Sub Counter Widget -->
+        <div id="youtubeWidget" class="hidden absolute top-8 left-8 widget-container px-5 py-3 rounded-2xl shadow-[0_4px_20px_rgba(220,38,38,0.15)] flex items-center gap-4 border-red-600 border-l-4">
+            <div class="bg-red-600/20 p-2 rounded-full">
+                <svg class="w-8 h-8 text-red-500 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            </div>
+            <div class="flex flex-col">
+                <span class="text-[10px] text-red-300 font-bold tracking-widest uppercase mb-[-4px]">Subscribers</span>
+                <span id="ytSubCount" class="font-black text-3xl tracking-tight text-white drop-shadow-md">---</span>
+            </div>
         </div>
 
         <!-- Timer Widget (Hidden by default) -->
@@ -275,6 +303,68 @@
                 }
                 updateDisplay();
             }, 1000);
+        }
+
+        // --- YouTube API Logic ---
+        let ytInterval;
+        
+        async function fetchYouTubeSubs() {
+            const apiKey = document.getElementById('ytApiKey').value.trim();
+            const channelId = document.getElementById('ytChannelId').value.trim();
+            const display = document.getElementById('ytSubCount');
+
+            if (!apiKey || !channelId) {
+                display.innerText = "Input Key/ID!";
+                display.style.fontSize = "1rem";
+                return;
+            }
+
+            try {
+                // Gunakan URL API YouTube v3 untuk mengambil statistik channel
+                const response = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${apiKey}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    display.innerText = "API Error!";
+                    display.style.fontSize = "1rem";
+                    console.error("YouTube API Error:", data.error.message);
+                    return;
+                }
+
+                if (data.items && data.items.length > 0) {
+                    const subs = data.items[0].statistics.subscriberCount;
+                    // Format angka agar lebih mudah dibaca (misal 1000 menjadi 1.000)
+                    display.innerText = new Intl.NumberFormat('id-ID').format(subs);
+                    display.style.fontSize = "1.875rem"; // Kembalikan ukuran font (3xl)
+                } else {
+                    display.innerText = "Not Found!";
+                    display.style.fontSize = "1rem";
+                }
+            } catch (error) {
+                console.error("Fetch error:", error);
+                display.innerText = "Koneksi Error";
+                display.style.fontSize = "1rem";
+            }
+        }
+
+        function startYoutubeTracker() {
+            // Tampilkan widget
+            document.getElementById('toggleYoutube').checked = true;
+            updateVisibility('youtubeWidget', true);
+            
+            // Tampilkan status loading
+            document.getElementById('ytSubCount').innerText = "Loading...";
+            document.getElementById('ytSubCount').style.fontSize = "1rem";
+            
+            // Panggil fungsi pertama kali
+            fetchYouTubeSubs(); 
+            
+            // Bersihkan interval sebelumnya jika ada
+            clearInterval(ytInterval);
+            
+            // Set interval untuk memperbarui setiap 60 detik (60000 ms)
+            // Ini sangat penting agar limit kuota API YouTube tidak cepat habis
+            ytInterval = setInterval(fetchYouTubeSubs, 60000);
         }
 
         // --- Utility ---
