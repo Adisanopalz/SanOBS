@@ -3,399 +3,955 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OBS Widget Collection</title>
+    <title>Advanced Stream Overlay</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        obs: {
-                            dark: '#1a1a2e',
-                            light: '#16213e',
-                            accent: '#e94560',
-                            text: '#ffffff'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@400;700;900&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        body {
-            background-color: transparent; /* Essential for OBS */
-            color: white;
-            font-family: 'Inter', sans-serif;
-            overflow: hidden; /* Prevent scrollbars in OBS */
+        :root {
+            --theme-hue: 190; /* Cyan default */
+            --glow-intensity: 15px;
+            --font-main: 'Poppins', sans-serif;
+            --font-cyber: 'Orbitron', sans-serif;
+            --glass-bg: rgba(10, 10, 15, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --neon-color: hsl(var(--theme-hue), 100%, 50%);
+            --neon-color-secondary: hsl(calc(var(--theme-hue) + 120), 100%, 60%);
         }
 
-        /* Utility class to hide the control panel when used in OBS */
-        .obs-mode .controls-panel {
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background-color: #000; /* Fallback */
+            color: #fff;
+            font-family: var(--font-main);
+            user-select: none;
+        }
+
+        /* Particles Background */
+        #bg-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at center, #111827 0%, #000000 100%);
+        }
+
+        /* Main Container */
+        #overlay-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through empty spaces */
+        }
+
+        /* Glassmorphism Base */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .widget {
+            position: absolute;
+            pointer-events: auto; /* Re-enable for widgets */
+            transition: opacity 0.3s ease, transform 0.2s ease;
+        }
+
+        .widget:hover .widget-controls {
+            opacity: 1;
+        }
+
+        .widget-controls {
+            position: absolute;
+            top: -25px; left: 0;
+            width: 100%; height: 20px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 4px 4px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 5px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            cursor: move;
+            font-size: 10px;
+            border: 1px solid var(--glass-border);
+            border-bottom: none;
+        }
+
+        .resize-handle {
+            position: absolute;
+            bottom: -5px; right: -5px;
+            width: 15px; height: 15px;
+            background: var(--neon-color);
+            border-radius: 50%;
+            cursor: se-resize;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 0 10px var(--neon-color);
+        }
+
+        .widget:hover .resize-handle { opacity: 1; }
+
+        /* OBS Mode - Hides UI Elements */
+        body.obs-mode .widget-controls,
+        body.obs-mode .resize-handle,
+        body.obs-mode #control-panel-wrapper {
             display: none !important;
         }
+        body.obs-mode { background: transparent !important; }
+        body.obs-mode #bg-canvas { opacity: 0.8; } /* Optional background in OBS */
 
-        /* Marquee Animation */
+        .font-cyber { font-family: var(--font-cyber); }
+        
+        .neon-text {
+            color: #fff;
+            text-shadow: 
+                0 0 5px #fff,
+                0 0 10px #fff,
+                0 0 var(--glow-intensity) var(--neon-color),
+                0 0 calc(var(--glow-intensity) * 2) var(--neon-color);
+        }
+
+        .neon-box {
+            box-shadow: 
+                0 0 5px var(--neon-color),
+                inset 0 0 5px var(--neon-color);
+            border: 1px solid var(--neon-color);
+        }
+
+        /* Animations */
         @keyframes marquee {
             0% { transform: translateX(100%); }
             100% { transform: translateX(-100%); }
         }
-        .animate-marquee {
-            animation: marquee 15s linear infinite;
+        .animate-marquee { animation: marquee 15s linear infinite; }
+
+        @keyframes spin-slow { 100% { transform: rotate(360deg); } }
+        .record-spin { animation: spin-slow 4s linear infinite; }
+
+        @keyframes alertSlideIn {
+            0% { transform: translateX(120%) scale(0.8); opacity: 0; }
+            70% { transform: translateX(-10%) scale(1.05); }
+            100% { transform: translateX(0) scale(1); opacity: 1; }
         }
-        
-        .widget-container {
-            backdrop-filter: blur(10px);
-            background-color: rgba(22, 33, 62, 0.8);
-            border: 1px solid rgba(255,255,255,0.1);
+        @keyframes alertSlideOut {
+            0% { transform: translateX(0) scale(1); opacity: 1; }
+            100% { transform: translateX(120%) scale(0.8); opacity: 0; }
         }
+        .alert-anim-in { animation: alertSlideIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .alert-anim-out { animation: alertSlideOut 0.5s ease-in forwards; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: var(--neon-color); border-radius: 10px; }
+
+        /* Layout Utility */
+        .hide { display: none !important; }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col p-4 relative" id="mainBody">
+<body>
 
-    <!-- Controls Panel (User Interface to configure widgets) -->
-    <div id="controlsPanel" class="controls-panel absolute top-4 left-4 bg-obs-dark p-6 rounded-xl shadow-2xl border border-gray-700 w-80 z-50 transition-all duration-300">
-        <div class="flex justify-between items-center mb-4">
-            <h1 class="text-xl font-bold text-obs-accent">OBS Widgets Setup</h1>
-            <button onclick="toggleControls()" class="text-gray-400 hover:text-white" title="Hide Controls">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-            </button>
-        </div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="overlay-container">
         
-        <p class="text-xs text-gray-400 mb-4">Configure your widgets below. In OBS, interact with this source to hide this panel.</p>
-
-        <!-- Clock Settings -->
-        <div class="mb-4 bg-obs-light p-3 rounded-lg">
-            <h2 class="font-semibold mb-2 flex items-center gap-2">
-                <input type="checkbox" id="toggleClock" checked onchange="updateVisibility('clockWidget', this.checked)" class="accent-obs-accent"> Clock
-            </h2>
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <label>Color</label>
-                    <input type="color" id="clockColor" value="#ffffff" onchange="updateStyle('clockTime', 'color', this.value)">
-                </div>
-                <div class="flex justify-between">
-                    <label>Size</label>
-                    <input type="range" min="1" max="5" step="0.5" value="3" oninput="updateStyle('clockTime', 'fontSize', this.value + 'rem')">
-                </div>
-            </div>
+        <!-- Widget: Clock -->
+        <div id="widget-clock" class="widget glass-panel p-4 flex flex-col items-center justify-center min-w-[200px]" style="top: 20px; left: 20px;">
+            <div class="widget-controls"><i class="fas fa-arrows-alt"></i> Clock <i class="fas fa-times cursor-pointer hide-btn"></i></div>
+            <div id="clock-time" class="font-cyber text-4xl neon-text tracking-wider font-bold">00:00:00</div>
+            <div id="clock-date" class="text-sm text-gray-300 mt-1 uppercase tracking-widest">LOADING...</div>
+            <div class="resize-handle"></div>
         </div>
 
-        <!-- Marquee Settings -->
-        <div class="mb-4 bg-obs-light p-3 rounded-lg">
-            <h2 class="font-semibold mb-2 flex items-center gap-2">
-                <input type="checkbox" id="toggleMarquee" checked onchange="updateVisibility('marqueeWidget', this.checked)" class="accent-obs-accent"> Ticker / Marquee
-            </h2>
-            <div class="space-y-2 text-sm">
-                <input type="text" id="marqueeText" value="Selamat datang di stream! Jangan lupa follow dan subscribe." 
-                       class="w-full bg-obs-dark border border-gray-600 rounded p-1 mb-2 text-white"
-                       onkeyup="updateText('marqueeContent', this.value)">
-                <div class="flex justify-between">
-                    <label>Speed (s)</label>
-                    <input type="range" min="5" max="30" value="15" oninput="updateAnimationDuration('marqueeContent', this.value + 's')">
+        <!-- Widget: Target Counters -->
+        <div id="widget-counters" class="widget glass-panel p-3" style="top: 20px; left: 50%; transform: translateX(-50%);">
+            <div class="widget-controls"><i class="fas fa-arrows-alt"></i> Stats <i class="fas fa-times cursor-pointer hide-btn"></i></div>
+            <div class="flex gap-6 items-center px-4">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-users text-[var(--neon-color)] text-xl drop-shadow-[0_0_5px_var(--neon-color)]"></i>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-400 uppercase font-bold">Viewers</span>
+                        <span id="counter-viewers" class="font-cyber text-lg font-bold">1,024</span>
+                    </div>
+                </div>
+                <div class="w-px h-8 bg-white/20"></div>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-heart text-pink-500 text-xl drop-shadow-[0_0_5px_#ec4899]"></i>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-400 uppercase font-bold">Follow Goal</span>
+                        <span class="font-cyber text-lg font-bold"><span id="counter-follows">850</span>/1k</span>
+                    </div>
+                </div>
+                <div class="w-px h-8 bg-white/20"></div>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-star text-yellow-400 text-xl drop-shadow-[0_0_5px_#facc15]"></i>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-400 uppercase font-bold">Sub Goal</span>
+                        <span class="font-cyber text-lg font-bold text-yellow-400">12/50</span>
+                    </div>
                 </div>
             </div>
+            <div class="resize-handle"></div>
         </div>
 
-        <!-- Timer Settings -->
-        <div class="mb-4 bg-obs-light p-3 rounded-lg">
-            <h2 class="font-semibold mb-2 flex items-center gap-2">
-                <input type="checkbox" id="toggleTimer" onchange="updateVisibility('timerWidget', this.checked)" class="accent-obs-accent"> Countdown Timer
-            </h2>
-            <div class="space-y-2 text-sm">
-                <div class="flex gap-2">
-                    <input type="number" id="timerMinutes" placeholder="Min" class="w-1/2 bg-obs-dark border border-gray-600 rounded p-1 text-white" value="5">
-                    <button onclick="startTimer()" class="w-1/2 bg-obs-accent hover:bg-red-600 text-white rounded p-1 transition-colors">Start</button>
+        <!-- Widget: Spotify / Now Playing -->
+        <div id="widget-music" class="widget glass-panel p-3 flex items-center gap-4 w-[300px]" style="bottom: 20px; left: 20px;">
+            <div class="widget-controls"><i class="fas fa-arrows-alt"></i> Music <i class="fas fa-times cursor-pointer hide-btn"></i></div>
+            <div class="relative w-16 h-16 rounded-full overflow-hidden border-2 border-[var(--neon-color)] shadow-[0_0_15px_var(--neon-color)]">
+                <!-- Using a solid color with icon since we cant load external images reliably without CORS issues -->
+                <div class="w-full h-full bg-gradient-to-br from-gray-800 to-black record-spin flex items-center justify-center">
+                    <i class="fas fa-music text-[var(--neon-color)]"></i>
                 </div>
-                <div class="flex justify-between mt-2">
-                    <label>Label</label>
-                    <input type="text" id="timerLabelInput" value="Starting in:" class="w-2/3 bg-obs-dark border border-gray-600 rounded p-1 text-white" onkeyup="updateText('timerLabel', this.value)">
+                <div class="absolute inset-0 m-auto w-4 h-4 bg-black rounded-full border border-gray-700"></div>
+            </div>
+            <div class="flex-1 overflow-hidden">
+                <div class="text-[10px] text-[var(--neon-color)] uppercase tracking-wider font-bold mb-1 flex items-center gap-1">
+                    <i class="fas fa-broadcast-tower animate-pulse"></i> Now Playing
+                </div>
+                <div id="music-title" class="font-bold text-sm truncate">Cyberpunk City - OST</div>
+                <div id="music-artist" class="text-xs text-gray-400 truncate">Synthwave Master</div>
+                <!-- Visualizer mock -->
+                <div class="flex gap-1 mt-2 h-3 items-end" id="mini-visualizer">
+                    <!-- Bars generated via JS -->
                 </div>
             </div>
+            <div class="resize-handle"></div>
         </div>
 
-        <!-- YouTube API Settings -->
-        <div class="mb-4 border-2 border-red-900 bg-obs-light p-3 rounded-lg shadow-[0_0_10px_rgba(220,38,38,0.2)]">
-            <h2 class="font-semibold mb-2 flex items-center gap-2 text-red-400">
-                <input type="checkbox" id="toggleYoutube" onchange="updateVisibility('youtubeWidget', this.checked)" class="accent-red-500"> 
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                YouTube Sub Counter
-            </h2>
-            <div class="space-y-2 text-sm">
-                <input type="password" id="ytApiKey" placeholder="YouTube API Key" class="w-full bg-obs-dark border border-gray-600 focus:border-red-500 outline-none rounded p-1 mb-1 text-white transition-colors">
-                <input type="text" id="ytChannelId" placeholder="Channel ID (UC...)" class="w-full bg-obs-dark border border-gray-600 focus:border-red-500 outline-none rounded p-1 mb-2 text-white transition-colors">
-                <button onclick="startYoutubeTracker()" class="w-full bg-red-600 hover:bg-red-700 text-white rounded p-2 font-semibold transition-colors flex items-center justify-center gap-2">
-                    Connect & Track
-                </button>
-                <p class="text-[10px] text-gray-400 mt-1 leading-tight">Data diperbarui setiap 60 detik untuk menghemat kuota API Anda. Masukkan Key dan ID, lalu klik tombol di atas.</p>
+        <!-- Widget: Chat -->
+        <div id="widget-chat" class="widget glass-panel flex flex-col w-[350px] h-[400px]" style="bottom: 80px; right: 20px;">
+            <div class="widget-controls"><i class="fas fa-arrows-alt"></i> Live Chat <i class="fas fa-times cursor-pointer hide-btn"></i></div>
+            <div class="bg-black/40 p-2 border-b border-white/10 font-bold text-sm flex items-center gap-2 text-[var(--neon-color)] rounded-t-2xl">
+                <i class="fas fa-comments"></i> STREAM CHAT
             </div>
+            <div id="chat-container" class="flex-1 overflow-hidden p-3 flex flex-col justify-end gap-2 text-sm mask-image-top">
+                <!-- Chat messages populated by JS -->
+            </div>
+            <div class="resize-handle"></div>
         </div>
 
-        <!-- Copy URL Helper -->
-        <div class="mt-6 pt-4 border-t border-gray-700">
-            <button onclick="copyUrlForObs()" class="w-full bg-gray-700 hover:bg-gray-600 text-white rounded p-2 text-sm flex items-center justify-center gap-2 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Copy URL for OBS
-            </button>
+        <!-- Widget: System HUD -->
+        <div id="widget-hud" class="widget glass-panel p-3 font-cyber text-xs w-[180px]" style="top: 20px; right: 20px;">
+            <div class="widget-controls"><i class="fas fa-arrows-alt"></i> System <i class="fas fa-times cursor-pointer hide-btn"></i></div>
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-gray-400">FPS</span>
+                <span id="hud-fps" class="text-[var(--neon-color)] neon-text font-bold text-lg">60</span>
+            </div>
+            <div class="mb-2">
+                <div class="flex justify-between text-[10px] mb-1"><span>CPU</span><span id="hud-cpu">45%</span></div>
+                <div class="w-full bg-black/50 h-1.5 rounded-full overflow-hidden">
+                    <div id="bar-cpu" class="h-full bg-cyan-400 w-[45%] shadow-[0_0_5px_cyan]"></div>
+                </div>
+            </div>
+            <div>
+                <div class="flex justify-between text-[10px] mb-1"><span>RAM</span><span id="hud-ram">8.2GB</span></div>
+                <div class="w-full bg-black/50 h-1.5 rounded-full overflow-hidden">
+                    <div id="bar-ram" class="h-full bg-magenta-500 w-[60%] shadow-[0_0_5px_magenta]"></div>
+                </div>
+            </div>
+            <div class="resize-handle"></div>
+        </div>
+
+        <!-- Widget: Ticker -->
+        <div id="widget-ticker" class="widget glass-panel w-full max-w-[800px] h-[40px] flex items-center overflow-hidden" style="bottom: 20px; left: 50%; transform: translateX(-50%);">
+            <div class="widget-controls"><i class="fas fa-arrows-alt"></i> Ticker <i class="fas fa-times cursor-pointer hide-btn"></i></div>
+            <div class="bg-[var(--neon-color)] text-black font-bold h-full px-4 flex items-center z-10 flex-shrink-0">
+                LATEST
+            </div>
+            <div class="relative flex-1 h-full overflow-hidden ml-2 flex items-center" style="mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);">
+                <div class="whitespace-nowrap animate-marquee font-semibold text-gray-200">
+                    🔥 New Follower: CyberNinja99 • 💎 Top Donator: xX_Sniper_Xx ($50) • 🚀 Subscribe to unlock exclusive emotes! • Welcome to the stream! Keep it positive in the chat.
+                </div>
+            </div>
+            <div class="resize-handle"></div>
+        </div>
+
+        <!-- Alert Container (Fixed position, not a draggable widget) -->
+        <div id="alert-container" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none flex flex-col gap-4">
+            <!-- Alerts injected here -->
+        </div>
+
+    </div>
+
+    <!-- Control Panel -->
+    <div id="control-panel-wrapper" class="absolute top-4 left-4 z-50 pointer-events-auto">
+        <!-- Toggle Button -->
+        <button id="toggle-panel-btn" class="glass-panel p-3 text-white hover:text-[var(--neon-color)] transition-colors rounded-full shadow-lg border border-white/20">
+            <i class="fas fa-cog text-xl fa-spin-hover"></i>
+        </button>
+
+        <!-- Main Panel -->
+        <div id="control-panel" class="glass-panel w-80 mt-2 p-5 flex flex-col gap-4 hidden transition-opacity duration-300 transform -translate-x-4 opacity-0 absolute top-full left-0">
+            <div class="flex justify-between items-center border-b border-white/10 pb-2">
+                <h2 class="font-cyber font-bold text-lg text-[var(--neon-color)]"><i class="fas fa-sliders-h"></i> CONTROL DASHBOARD</h2>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex gap-2 border-b border-white/10 pb-2">
+                <button class="tab-btn active flex-1 bg-white/10 p-1 rounded text-xs font-bold text-[var(--neon-color)]" data-target="tab-widgets">Widgets</button>
+                <button class="tab-btn flex-1 p-1 rounded text-xs font-bold hover:bg-white/5" data-target="tab-theme">Theme</button>
+                <button class="tab-btn flex-1 p-1 rounded text-xs font-bold hover:bg-white/5" data-target="tab-scenes">Scenes</button>
+            </div>
+
+            <div class="overflow-y-auto max-h-[60vh] pr-2 pb-4 text-sm">
+                
+                <!-- Tab: Widgets -->
+                <div id="tab-widgets" class="tab-content flex flex-col gap-3">
+                    <div class="text-xs text-gray-400 mb-1 uppercase font-bold tracking-wider">Toggle Elements</div>
+                    
+                    <label class="flex justify-between items-center cursor-pointer">
+                        <span>Digital Clock</span>
+                        <input type="checkbox" class="widget-toggle accent-[var(--neon-color)] w-4 h-4" data-target="widget-clock" checked>
+                    </label>
+                    <label class="flex justify-between items-center cursor-pointer">
+                        <span>Stats Counters</span>
+                        <input type="checkbox" class="widget-toggle accent-[var(--neon-color)] w-4 h-4" data-target="widget-counters" checked>
+                    </label>
+                    <label class="flex justify-between items-center cursor-pointer">
+                        <span>Now Playing</span>
+                        <input type="checkbox" class="widget-toggle accent-[var(--neon-color)] w-4 h-4" data-target="widget-music" checked>
+                    </label>
+                    <label class="flex justify-between items-center cursor-pointer">
+                        <span>Live Chat</span>
+                        <input type="checkbox" class="widget-toggle accent-[var(--neon-color)] w-4 h-4" data-target="widget-chat" checked>
+                    </label>
+                    <label class="flex justify-between items-center cursor-pointer">
+                        <span>System HUD</span>
+                        <input type="checkbox" class="widget-toggle accent-[var(--neon-color)] w-4 h-4" data-target="widget-hud" checked>
+                    </label>
+                    <label class="flex justify-between items-center cursor-pointer">
+                        <span>Marquee Ticker</span>
+                        <input type="checkbox" class="widget-toggle accent-[var(--neon-color)] w-4 h-4" data-target="widget-ticker" checked>
+                    </label>
+
+                    <button id="test-alert-btn" class="mt-4 bg-[var(--neon-color)] text-black font-bold py-2 rounded hover:brightness-125 transition">
+                        <i class="fas fa-bell"></i> Test Alert
+                    </button>
+                </div>
+
+                <!-- Tab: Theme -->
+                <div id="tab-theme" class="tab-content flex flex-col gap-4 hidden">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Theme Color (Hue)</label>
+                        <input type="range" id="theme-hue" min="0" max="360" value="190" class="w-full accent-[var(--neon-color)]">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Glow Intensity</label>
+                        <input type="range" id="glow-intensity" min="0" max="30" value="15" class="w-full accent-[var(--neon-color)]">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Glass Opacity</label>
+                        <input type="range" id="glass-opacity" min="1" max="9" value="6" class="w-full accent-[var(--neon-color)]">
+                    </div>
+                    <div>
+                        <label class="flex justify-between items-center cursor-pointer mt-2 text-sm">
+                            <span>Particles Animation</span>
+                            <input type="checkbox" id="toggle-particles" class="accent-[var(--neon-color)] w-4 h-4" checked>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Tab: Scenes -->
+                <div id="tab-scenes" class="tab-content flex flex-col gap-2 hidden">
+                    <button class="scene-btn p-2 bg-white/5 border border-white/10 rounded hover:bg-[var(--neon-color)] hover:text-black hover:font-bold transition text-left" data-scene="live">
+                        🔴 LIVE STREAMING
+                    </button>
+                    <button class="scene-btn p-2 bg-white/5 border border-white/10 rounded hover:bg-yellow-400 hover:text-black hover:font-bold transition text-left" data-scene="starting">
+                        ⏳ STARTING SOON
+                    </button>
+                    <button class="scene-btn p-2 bg-white/5 border border-white/10 rounded hover:bg-purple-500 hover:text-black hover:font-bold transition text-left" data-scene="brb">
+                        ☕ BE RIGHT BACK
+                    </button>
+                    <button class="scene-btn p-2 bg-white/5 border border-white/10 rounded hover:bg-pink-500 hover:text-black hover:font-bold transition text-left" data-scene="chatting">
+                        💬 JUST CHATTING
+                    </button>
+                    
+                    <div class="mt-4 border-t border-white/10 pt-4 flex gap-2">
+                        <button id="save-layout" class="flex-1 bg-green-600/50 hover:bg-green-500 py-1 rounded text-xs font-bold transition border border-green-400/30">Save Layout</button>
+                        <button id="reset-layout" class="flex-1 bg-red-600/50 hover:bg-red-500 py-1 rounded text-xs font-bold transition border border-red-400/30">Reset</button>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="text-[10px] text-center text-gray-500 border-t border-white/10 pt-2">
+                Add <code>?obs=true</code> to URL in Browser Source
+            </div>
         </div>
     </div>
 
-    <!-- Restore Controls Button (Visible when controls are hidden) -->
-    <button id="showControlsBtn" onclick="toggleControls()" class="hidden absolute top-4 left-4 bg-obs-dark bg-opacity-50 hover:bg-opacity-100 text-gray-400 hover:text-white p-2 rounded-full z-50 transition-all">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-        </svg>
-    </button>
-
-    <!-- WIDGETS DISPLAY AREA -->
-    <!-- Note: In OBS, user will typically crop or move these around via custom CSS or layout -->
-    <div class="flex-1 w-full h-full relative pointer-events-none"> <!-- pointer-events-none lets clicks pass through to OBS -->
-        
-        <!-- Clock Widget -->
-        <div id="clockWidget" class="absolute top-8 right-8 widget-container px-6 py-3 rounded-2xl shadow-lg transition-opacity duration-300">
-            <div id="clockTime" class="font-bold text-5xl tracking-wider text-shadow" style="font-size: 3rem;">00:00:00</div>
-            <div id="clockDate" class="text-right text-gray-300 text-sm mt-1 uppercase tracking-widest font-semibold">Senin, 1 Jan</div>
-        </div>
-
-        <!-- YouTube Sub Counter Widget -->
-        <div id="youtubeWidget" class="hidden absolute top-8 left-8 widget-container px-5 py-3 rounded-2xl shadow-[0_4px_20px_rgba(220,38,38,0.15)] flex items-center gap-4 border-red-600 border-l-4">
-            <div class="bg-red-600/20 p-2 rounded-full">
-                <svg class="w-8 h-8 text-red-500 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-            </div>
-            <div class="flex flex-col">
-                <span class="text-[10px] text-red-300 font-bold tracking-widest uppercase mb-[-4px]">Subscribers</span>
-                <span id="ytSubCount" class="font-black text-3xl tracking-tight text-white drop-shadow-md">---</span>
-            </div>
-        </div>
-
-        <!-- Timer Widget (Hidden by default) -->
-        <div id="timerWidget" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 widget-container px-8 py-6 rounded-3xl shadow-2xl flex flex-col items-center border-obs-accent border-2">
-            <div id="timerLabel" class="text-obs-accent font-bold text-xl mb-2 tracking-widest uppercase">Starting in:</div>
-            <div id="timerDisplay" class="font-black text-7xl font-mono text-white tracking-tighter">05:00</div>
-        </div>
-
-        <!-- Marquee / Ticker Widget -->
-        <div id="marqueeWidget" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-4xl widget-container rounded-full overflow-hidden shadow-lg border-b-4 border-obs-accent flex items-center">
-            <div class="bg-obs-accent text-white px-4 py-2 font-bold z-10 whitespace-nowrap h-full flex items-center uppercase text-sm tracking-wider">
-                INFO
-            </div>
-            <div class="flex-1 overflow-hidden relative h-10 w-full">
-                <div id="marqueeContent" class="absolute whitespace-nowrap h-full flex items-center font-semibold text-lg text-gray-100 animate-marquee pl-full">
-                    Selamat datang di stream! Jangan lupa follow dan subscribe.
-                </div>
-            </div>
-        </div>
-
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-4 right-4 glass-panel px-4 py-2 text-sm font-bold text-[var(--neon-color)] transform translate-x-full transition-transform duration-300 z-50">
+        Saved!
     </div>
 
     <script>
-        // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            startClock();
             
-            // Check URL parameters for 'obs' mode to auto-hide controls
-            const urlParams = new URLSearchParams(window.location.search);
-            if(urlParams.has('obs')) {
+            // --- CORE UTILS & STATE ---
+            const URLParams = new URLSearchParams(window.location.search);
+            const isOBS = URLParams.get('obs') === 'true';
+            
+            if (isOBS) {
                 document.body.classList.add('obs-mode');
             }
-        });
 
-        // --- Controls Toggle ---
-        function toggleControls() {
-            const panel = document.getElementById('controlsPanel');
-            const btn = document.getElementById('showControlsBtn');
-            const isHidden = panel.classList.contains('hidden');
+            const state = {
+                themeHue: 190,
+                glowIntensity: 15,
+                glassOpacity: 6,
+                particles: true,
+                layout: {}
+            };
 
-            if (isHidden) {
-                panel.classList.remove('hidden');
-                btn.classList.add('hidden');
-            } else {
-                panel.classList.add('hidden');
-                btn.classList.remove('hidden');
+            const root = document.documentElement;
+
+            // --- PARTICLE ENGINE (Canvas API) ---
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let particlesArray = [];
+            let particleAnimId;
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
             }
-        }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
 
-        // --- Helper Functions for Settings ---
-        function updateVisibility(elementId, isVisible) {
-            const el = document.getElementById(elementId);
-            if (isVisible) {
-                el.classList.remove('hidden');
-            } else {
-                el.classList.add('hidden');
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.size = Math.random() * 2 + 0.1;
+                    this.speedX = (Math.random() * 1 - 0.5) * 0.5;
+                    this.speedY = (Math.random() * 1 - 0.5) * 0.5;
+                    this.baseColor = `hsl(${state.themeHue}, 100%, 50%)`;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.x > canvas.width) this.x = 0;
+                    if (this.x < 0) this.x = canvas.width;
+                    if (this.y > canvas.height) this.y = 0;
+                    if (this.y < 0) this.y = canvas.height;
+                }
+                draw() {
+                    ctx.fillStyle = `hsla(${state.themeHue}, 100%, 50%, 0.5)`;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
-        }
 
-        function updateStyle(elementId, property, value) {
-            document.getElementById(elementId).style[property] = value;
-        }
+            function initParticles() {
+                particlesArray = [];
+                const numParticles = Math.min((canvas.width * canvas.height) / 10000, 100);
+                for (let i = 0; i < numParticles; i++) particlesArray.push(new Particle());
+            }
 
-        function updateText(elementId, text) {
-            document.getElementById(elementId).innerText = text;
-        }
+            function animateParticles() {
+                if(!state.particles) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    return;
+                }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particlesArray.length; i++) {
+                    particlesArray[i].update();
+                    particlesArray[i].draw();
+                    
+                    // Connect close particles (Cyber effect)
+                    for (let j = i; j < particlesArray.length; j++) {
+                        const dx = particlesArray[i].x - particlesArray[j].x;
+                        const dy = particlesArray[i].y - particlesArray[j].y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < 100) {
+                            ctx.beginPath();
+                            ctx.strokeStyle = `hsla(${state.themeHue}, 100%, 50%, ${0.1 - distance/1000})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.moveTo(particlesArray[i].x, particlesArray[i].y);
+                            ctx.lineTo(particlesArray[j].x, particlesArray[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                particleAnimId = requestAnimationFrame(animateParticles);
+            }
+            initParticles();
+            animateParticles();
 
-        function updateAnimationDuration(elementId, duration) {
-            document.getElementById(elementId).style.animationDuration = duration;
-        }
 
-        // --- Clock Logic ---
-        function startClock() {
-            const timeEl = document.getElementById('clockTime');
-            const dateEl = document.getElementById('clockDate');
+            // --- WIDGET LOGIC ---
             
-            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
-
-            setInterval(() => {
+            // 1. Clock Widget
+            function updateClock() {
                 const now = new Date();
+                const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second:'2-digit' });
+                const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                document.getElementById('clock-time').textContent = timeStr;
+                document.getElementById('clock-date').textContent = dateStr;
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            // 2. HUD & System Stats (Mock Data)
+            let frames = 0;
+            let lastTime = performance.now();
+            function updateHUD() {
+                const now = performance.now();
+                frames++;
+                if (now - lastTime >= 1000) {
+                    document.getElementById('hud-fps').textContent = Math.round((frames * 1000) / (now - lastTime));
+                    frames = 0;
+                    lastTime = now;
+                    
+                    // Randomize CPU/RAM slightly for effect
+                    const cpu = Math.floor(Math.random() * 20 + 30); // 30-50%
+                    const ram = (Math.random() * 2 + 6).toFixed(1); // 6-8 GB
+                    const cpuW = cpu + '%';
+                    const ramW = (ram/16*100) + '%';
+
+                    document.getElementById('hud-cpu').textContent = cpuW;
+                    document.getElementById('bar-cpu').style.width = cpuW;
+                    document.getElementById('hud-ram').textContent = ram + 'GB';
+                    document.getElementById('bar-ram').style.width = ramW;
+                }
+                requestAnimationFrame(updateHUD);
+            }
+            requestAnimationFrame(updateHUD);
+
+            // 3. Mini Visualizer (Mock audio reactivity)
+            const visContainer = document.getElementById('mini-visualizer');
+            for(let i=0; i<15; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'w-1 bg-[var(--neon-color)] rounded-t transition-all duration-75';
+                bar.style.height = '10%';
+                visContainer.appendChild(bar);
+            }
+            setInterval(() => {
+                Array.from(visContainer.children).forEach(bar => {
+                    const h = Math.random() * 100;
+                    bar.style.height = `${Math.max(10, h)}%`;
+                    bar.style.opacity = Math.max(0.4, h/100);
+                });
+            }, 100);
+
+            // 4. Live Chat Mock Engine
+            const chatContainer = document.getElementById('chat-container');
+            const chatNames = ['CyberNinja', 'NeonRider', 'GlitchBoi', 'PixelQueen', 'RetroGamer', 'SynthWave'];
+            const chatMsgs = [
+                'This stream is fire 🔥', 'LMAO nice play', 'What song is this?', 
+                'POGGERS', 'Hello from Tokyo!', 'Cyberpunk vibes are real', 
+                'W stream', 'Can you play that one game again?'
+            ];
+            const badges = ['<i class="fas fa-gem text-blue-400"></i>', '<i class="fas fa-wrench text-green-400"></i>', ''];
+
+            function addChatMessage() {
+                if(chatContainer.children.length > 20) chatContainer.removeChild(chatContainer.firstChild);
                 
-                // Format Time HH:MM:SS
-                const h = String(now.getHours()).padStart(2, '0');
-                const m = String(now.getMinutes()).padStart(2, '0');
-                const s = String(now.getSeconds()).padStart(2, '0');
-                timeEl.innerText = `${h}:${m}:${s}`;
+                const name = chatNames[Math.floor(Math.random() * chatNames.length)];
+                const msg = chatMsgs[Math.floor(Math.random() * chatMsgs.length)];
+                const badge = badges[Math.floor(Math.random() * badges.length)];
+                const color = `hsl(${Math.random() * 360}, 80%, 70%)`;
 
-                // Format Date
-                const dayName = days[now.getDay()];
-                const date = now.getDate();
-                const monthName = months[now.getMonth()];
-                dateEl.innerText = `${dayName}, ${date} ${monthName}`;
-            }, 1000);
-        }
-
-        // --- Timer Logic ---
-        let timerInterval;
-        
-        function startTimer() {
-            // Ensure timer is visible
-            document.getElementById('toggleTimer').checked = true;
-            updateVisibility('timerWidget', true);
-
-            clearInterval(timerInterval);
-            
-            let minutes = parseInt(document.getElementById('timerMinutes').value) || 0;
-            let totalSeconds = minutes * 60;
-            const display = document.getElementById('timerDisplay');
-
-            function updateDisplay() {
-                const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-                const s = String(totalSeconds % 60).padStart(2, '0');
-                display.innerText = `${m}:${s}`;
+                const div = document.createElement('div');
+                div.className = 'animate-fade-in break-words leading-tight bg-white/5 p-2 rounded border-l-2 border-[var(--neon-color)]';
+                div.innerHTML = `
+                    <div class="font-bold mb-1" style="color: ${color}">${badge} ${name}</div>
+                    <div class="text-gray-200">${msg}</div>
+                `;
+                chatContainer.appendChild(div);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
             }
+            setInterval(addChatMessage, 4500);
+            addChatMessage();
 
-            updateDisplay(); // Initial display
-
-            timerInterval = setInterval(() => {
-                totalSeconds--;
-                if (totalSeconds < 0) {
-                    clearInterval(timerInterval);
-                    display.innerText = "00:00";
-                    // Optional: Play a sound or change color when done
-                    display.classList.add('text-obs-accent');
-                    setTimeout(() => display.classList.remove('text-obs-accent'), 2000);
-                    return;
-                }
-                updateDisplay();
-            }, 1000);
-        }
-
-        // --- YouTube API Logic ---
-        let ytInterval;
-        
-        async function fetchYouTubeSubs() {
-            const apiKey = document.getElementById('ytApiKey').value.trim();
-            const channelId = document.getElementById('ytChannelId').value.trim();
-            const display = document.getElementById('ytSubCount');
-
-            if (!apiKey || !channelId) {
-                display.innerText = "Input Key/ID!";
-                display.style.fontSize = "1rem";
-                return;
-            }
-
-            try {
-                // Gunakan URL API YouTube v3 untuk mengambil statistik channel
-                const response = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${apiKey}`);
-                const data = await response.json();
+            // 5. Alert System
+            const alertContainer = document.getElementById('alert-container');
+            function triggerAlert(type, name, amount) {
+                const alertEl = document.createElement('div');
+                alertEl.className = 'glass-panel p-4 flex items-center gap-4 alert-anim-in min-w-[300px] border-2 border-[var(--neon-color)] shadow-[0_0_20px_var(--neon-color)] relative overflow-hidden';
                 
-                if (data.error) {
-                    display.innerText = "API Error!";
-                    display.style.fontSize = "1rem";
-                    console.error("YouTube API Error:", data.error.message);
-                    return;
-                }
+                let icon = 'fa-star';
+                let text = 'New Subscriber!';
+                let color = 'text-yellow-400';
+                
+                if(type === 'donation') { icon = 'fa-diamond'; text = `Donation: $${amount}`; color = 'text-green-400'; }
+                if(type === 'follow') { icon = 'fa-heart'; text = 'New Follower!'; color = 'text-pink-400'; }
 
-                if (data.items && data.items.length > 0) {
-                    const subs = data.items[0].statistics.subscriberCount;
-                    // Format angka agar lebih mudah dibaca (misal 1000 menjadi 1.000)
-                    display.innerText = new Intl.NumberFormat('id-ID').format(subs);
-                    display.style.fontSize = "1.875rem"; // Kembalikan ukuran font (3xl)
-                } else {
-                    display.innerText = "Not Found!";
-                    display.style.fontSize = "1rem";
-                }
-            } catch (error) {
-                console.error("Fetch error:", error);
-                display.innerText = "Koneksi Error";
-                display.style.fontSize = "1rem";
-            }
-        }
+                alertEl.innerHTML = `
+                    <div class="absolute inset-0 bg-gradient-to-r from-[var(--neon-color)] to-transparent opacity-20"></div>
+                    <div class="w-12 h-12 rounded-full bg-black/50 border border-[var(--neon-color)] flex items-center justify-center text-2xl ${color} z-10">
+                        <i class="fas ${icon} fa-bounce"></i>
+                    </div>
+                    <div class="z-10">
+                        <div class="font-cyber font-bold ${color} text-sm uppercase tracking-widest">${text}</div>
+                        <div class="text-white font-bold text-xl">${name}</div>
+                    </div>
+                `;
 
-        function startYoutubeTracker() {
-            // Tampilkan widget
-            document.getElementById('toggleYoutube').checked = true;
-            updateVisibility('youtubeWidget', true);
-            
-            // Tampilkan status loading
-            document.getElementById('ytSubCount').innerText = "Loading...";
-            document.getElementById('ytSubCount').style.fontSize = "1rem";
-            
-            // Panggil fungsi pertama kali
-            fetchYouTubeSubs(); 
-            
-            // Bersihkan interval sebelumnya jika ada
-            clearInterval(ytInterval);
-            
-            // Set interval untuk memperbarui setiap 60 detik (60000 ms)
-            // Ini sangat penting agar limit kuota API YouTube tidak cepat habis
-            ytInterval = setInterval(fetchYouTubeSubs, 60000);
-        }
+                alertContainer.appendChild(alertEl);
 
-        // --- Utility ---
-        function copyUrlForObs() {
-            // Create URL with ?obs parameter to auto-hide controls in OBS
-            const url = new URL(window.location.href);
-            url.searchParams.set('obs', 'true');
-            
-            // Create a temporary input to copy from
-            const tempInput = document.createElement("input");
-            tempInput.value = url.href;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            
-            try {
-                document.execCommand("copy");
-                // Visual feedback
-                const btn = document.querySelector('button[onclick="copyUrlForObs()"]');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '✓ Copied!';
-                btn.classList.replace('bg-gray-700', 'bg-green-600');
+                // Play sound (using web audio api for beep, to avoid external assets)
+                playAlertSound();
+
                 setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.classList.replace('bg-green-600', 'bg-gray-700');
-                }, 2000);
-            } catch (err) {
-                console.error("Failed to copy", err);
-            } finally {
-                document.body.removeChild(tempInput);
+                    alertEl.classList.remove('alert-anim-in');
+                    alertEl.classList.add('alert-anim-out');
+                    setTimeout(() => alertEl.remove(), 500);
+                }, 4000);
             }
-        }
+
+            function playAlertSound() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gainNode = ctx.createGain();
+                    osc.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.5);
+                } catch(e) { console.log('Audio contextual ignored.'); }
+            }
+
+            document.getElementById('test-alert-btn').addEventListener('click', () => {
+                const types = ['follow', 'donation', 'sub'];
+                const names = ['NinjaLooter', 'PixelPro', 'StreamSniper99'];
+                triggerAlert(
+                    types[Math.floor(Math.random()*types.length)], 
+                    names[Math.floor(Math.random()*names.length)],
+                    Math.floor(Math.random()*100)
+                );
+            });
+
+
+            // --- DRAG AND DROP & RESIZE SYSTEM ---
+            let isDragging = false;
+            let currentDraggable = null;
+            let dragOffset = { x: 0, y: 0 };
+            
+            let isResizing = false;
+            let currentResizable = null;
+            let startSize = { w: 0, h: 0 };
+            let startPos = { x: 0, y: 0 };
+
+            document.addEventListener('mousedown', (e) => {
+                if (isOBS) return;
+
+                // Handle Close Button on Widget
+                if (e.target.classList.contains('hide-btn')) {
+                    const widget = e.target.closest('.widget');
+                    widget.classList.add('hide');
+                    // Update checkbox
+                    const cb = document.querySelector(`.widget-toggle[data-target="${widget.id}"]`);
+                    if(cb) cb.checked = false;
+                    saveLayout();
+                    return;
+                }
+
+                // Handle Drag
+                if (e.target.closest('.widget-controls') && !e.target.classList.contains('hide-btn')) {
+                    isDragging = true;
+                    currentDraggable = e.target.closest('.widget');
+                    // Move to front
+                    currentDraggable.style.zIndex = Date.now().toString().slice(-5);
+                    const rect = currentDraggable.getBoundingClientRect();
+                    dragOffset.x = e.clientX - rect.left;
+                    dragOffset.y = e.clientY - rect.top;
+                    e.preventDefault();
+                }
+
+                // Handle Resize
+                if (e.target.classList.contains('resize-handle')) {
+                    isResizing = true;
+                    currentResizable = e.target.closest('.widget');
+                    startSize.w = currentResizable.offsetWidth;
+                    startSize.h = currentResizable.offsetHeight;
+                    startPos.x = e.clientX;
+                    startPos.y = e.clientY;
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging && currentDraggable) {
+                    let newX = e.clientX - dragOffset.x;
+                    let newY = e.clientY - dragOffset.y;
+                    
+                    // Simple bounds checking
+                    newX = Math.max(0, Math.min(newX, window.innerWidth - currentDraggable.offsetWidth));
+                    newY = Math.max(0, Math.min(newY, window.innerHeight - currentDraggable.offsetHeight));
+
+                    currentDraggable.style.left = `${newX}px`;
+                    currentDraggable.style.top = `${newY}px`;
+                    currentDraggable.style.bottom = 'auto'; // clear bottom
+                    currentDraggable.style.right = 'auto'; // clear right
+                    currentDraggable.style.transform = 'none'; // clear transform if used for centering
+                }
+
+                if (isResizing && currentResizable) {
+                    const newW = startSize.w + (e.clientX - startPos.x);
+                    const newH = startSize.h + (e.clientY - startPos.y);
+                    
+                    // Min sizes
+                    currentResizable.style.width = `${Math.max(150, newW)}px`;
+                    currentResizable.style.height = `${Math.max(60, newH)}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if(isDragging || isResizing) {
+                    saveLayout();
+                }
+                isDragging = false;
+                currentDraggable = null;
+                isResizing = false;
+                currentResizable = null;
+            });
+
+
+            // --- CONTROL PANEL UI LOGIC ---
+            const panelBtn = document.getElementById('toggle-panel-btn');
+            const panel = document.getElementById('control-panel');
+            
+            panelBtn.addEventListener('click', () => {
+                const isHidden = panel.classList.contains('hidden');
+                if(isHidden) {
+                    panel.classList.remove('hidden');
+                    // Slight delay for animation
+                    setTimeout(() => {
+                        panel.classList.remove('opacity-0', '-translate-x-4');
+                    }, 10);
+                } else {
+                    panel.classList.add('opacity-0', '-translate-x-4');
+                    setTimeout(() => {
+                        panel.classList.add('hidden');
+                    }, 300);
+                }
+            });
+
+            // Tabs
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    tabBtns.forEach(b => {
+                        b.classList.remove('bg-white/10', 'text-[var(--neon-color)]');
+                        b.classList.add('hover:bg-white/5');
+                    });
+                    e.target.classList.add('bg-white/10', 'text-[var(--neon-color)]');
+                    e.target.classList.remove('hover:bg-white/5');
+
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                    document.getElementById(e.target.dataset.target).classList.remove('hidden');
+                });
+            });
+
+            // Theme Settings
+            const hueSlider = document.getElementById('theme-hue');
+            const glowSlider = document.getElementById('glow-intensity');
+            const glassSlider = document.getElementById('glass-opacity');
+            const particleToggle = document.getElementById('toggle-particles');
+
+            function applyTheme() {
+                root.style.setProperty('--theme-hue', state.themeHue);
+                root.style.setProperty('--glow-intensity', `${state.glowIntensity}px`);
+                root.style.setProperty('--glass-bg', `rgba(10, 10, 15, ${state.glassOpacity/10})`);
+                
+                hueSlider.value = state.themeHue;
+                glowSlider.value = state.glowIntensity;
+                glassSlider.value = state.glassOpacity;
+                particleToggle.checked = state.particles;
+                
+                if(state.particles && !particleAnimId) animateParticles();
+            }
+
+            hueSlider.addEventListener('input', (e) => { state.themeHue = e.target.value; applyTheme(); saveLayout(); });
+            glowSlider.addEventListener('input', (e) => { state.glowIntensity = e.target.value; applyTheme(); saveLayout(); });
+            glassSlider.addEventListener('input', (e) => { state.glassOpacity = e.target.value; applyTheme(); saveLayout(); });
+            particleToggle.addEventListener('change', (e) => { 
+                state.particles = e.target.checked; 
+                if(state.particles) animateParticles();
+                saveLayout(); 
+            });
+
+            // Widget Toggles
+            document.querySelectorAll('.widget-toggle').forEach(toggle => {
+                toggle.addEventListener('change', (e) => {
+                    const targetId = e.target.dataset.target;
+                    const widget = document.getElementById(targetId);
+                    if(e.target.checked) {
+                        widget.classList.remove('hide');
+                    } else {
+                        widget.classList.add('hide');
+                    }
+                    saveLayout();
+                });
+            });
+
+            // Scene Pre-sets
+            const scenes = {
+                live: {
+                    widgets: ['widget-counters', 'widget-chat', 'widget-hud', 'widget-ticker'],
+                    layout: {
+                        'widget-chat': { bottom: '80px', right: '20px', top: 'auto', left: 'auto', width: '350px', height: '400px' },
+                        'widget-counters': { top: '20px', left: '50%', transform: 'translateX(-50%)', bottom: 'auto', right: 'auto' },
+                        'widget-hud': { top: '20px', right: '20px', left: 'auto', bottom: 'auto' },
+                        'widget-ticker': { bottom: '20px', left: '50%', transform: 'translateX(-50%)', top: 'auto', right: 'auto', width: '800px' }
+                    }
+                },
+                starting: {
+                    widgets: ['widget-clock', 'widget-music', 'widget-ticker'],
+                    layout: {
+                        'widget-clock': { top: '40%', left: '50%', transform: 'translate(-50%, -50%) scale(2)', bottom: 'auto', right: 'auto' },
+                        'widget-music': { bottom: '100px', left: '50%', transform: 'translateX(-50%) scale(1.5)', top: 'auto', right: 'auto', width: '400px' },
+                        'widget-ticker': { bottom: '20px', left: '50%', transform: 'translateX(-50%)', top: 'auto', right: 'auto', width: '800px' }
+                    }
+                },
+                brb: {
+                    widgets: ['widget-clock', 'widget-chat', 'widget-ticker'],
+                    layout: {
+                        'widget-clock': { top: '20px', left: '20px', transform: 'none', bottom: 'auto', right: 'auto' },
+                        'widget-chat': { top: '20px', right: '20px', bottom: 'auto', left: 'auto', width: '350px', height: '600px' },
+                        'widget-ticker': { bottom: '20px', left: '50%', transform: 'translateX(-50%)', top: 'auto', right: 'auto', width: '800px' }
+                    }
+                },
+                chatting: {
+                    widgets: ['widget-chat', 'widget-counters', 'widget-music', 'widget-ticker'],
+                    layout: {
+                        'widget-chat': { top: '20px', left: '20px', bottom: 'auto', right: 'auto', width: '400px', height: '80%' },
+                        'widget-counters': { top: '20px', right: '20px', left: 'auto', transform: 'none' },
+                        'widget-music': { top: '100px', right: '20px', left: 'auto', transform: 'none' },
+                        'widget-ticker': { bottom: '20px', left: '50%', transform: 'translateX(-50%)', top: 'auto', right: 'auto', width: '800px' }
+                    }
+                }
+            };
+
+            document.querySelectorAll('.scene-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const sceneName = e.target.dataset.scene;
+                    const scene = scenes[sceneName];
+                    
+                    // Hide all first
+                    document.querySelectorAll('.widget').forEach(w => w.classList.add('hide'));
+                    document.querySelectorAll('.widget-toggle').forEach(t => t.checked = false);
+
+                    // Show active & apply layout
+                    scene.widgets.forEach(id => {
+                        const w = document.getElementById(id);
+                        w.classList.remove('hide');
+                        const toggle = document.querySelector(`.widget-toggle[data-target="${id}"]`);
+                        if(toggle) toggle.checked = true;
+
+                        // Apply CSS inline
+                        if(scene.layout[id]) {
+                            const css = scene.layout[id];
+                            Object.keys(css).forEach(prop => {
+                                w.style[prop] = css[prop];
+                            });
+                        }
+                    });
+                    
+                    showToast(`Scene loaded: ${sceneName.toUpperCase()}`);
+                    saveLayout();
+                });
+            });
+
+
+            // --- SAVE / LOAD SYSTEM ---
+            function showToast(msg = 'Saved!') {
+                const t = document.getElementById('toast');
+                t.textContent = msg;
+                t.classList.remove('translate-x-full');
+                setTimeout(() => {
+                    t.classList.add('translate-x-full');
+                }, 2000);
+            }
+
+            function saveLayout() {
+                if(isOBS) return; // Don't save if in OBS viewer mode
+                
+                document.querySelectorAll('.widget').forEach(w => {
+                    if(!w.id) return;
+                    state.layout[w.id] = {
+                        top: w.style.top, left: w.style.left,
+                        bottom: w.style.bottom, right: w.style.right,
+                        width: w.style.width, height: w.style.height,
+                        transform: w.style.transform,
+                        hide: w.classList.contains('hide')
+                    };
+                });
+                
+                localStorage.setItem('obsOverlayState', JSON.stringify(state));
+            }
+
+            function loadLayout() {
+                const saved = localStorage.getItem('obsOverlayState');
+                if(saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        // Merge state
+                        state.themeHue = parsed.themeHue || 190;
+                        state.glowIntensity = parsed.glowIntensity !== undefined ? parsed.glowIntensity : 15;
+                        state.glassOpacity = parsed.glassOpacity || 6;
+                        state.particles = parsed.particles !== undefined ? parsed.particles : true;
+                        
+                        applyTheme();
+
+                        if(parsed.layout) {
+                            Object.keys(parsed.layout).forEach(id => {
+                                const w = document.getElementById(id);
+                                if(w) {
+                                    const l = parsed.layout[id];
+                                    w.style.top = l.top || 'auto';
+                                    w.style.left = l.left || 'auto';
+                                    w.style.bottom = l.bottom || 'auto';
+                                    w.style.right = l.right || 'auto';
+                                    if(l.width) w.style.width = l.width;
+                                    if(l.height) w.style.height = l.height;
+                                    if(l.transform) w.style.transform = l.transform;
+                                    
+                                    if(l.hide) {
+                                        w.classList.add('hide');
+                                    } else {
+                                        w.classList.remove('hide');
+                                    }
+
+                                    // Update UI toggles
+                                    const toggle = document.querySelector(`.widget-toggle[data-target="${id}"]`);
+                                    if(toggle) toggle.checked = !l.hide;
+                                }
+                            });
+                        }
+                    } catch(e) { console.error("Error parsing saved layout", e); }
+                } else {
+                    applyTheme(); // apply defaults
+                }
+            }
+
+            document.getElementById('save-layout').addEventListener('click', () => { saveLayout(); showToast(); });
+            document.getElementById('reset-layout').addEventListener('click', () => {
+                localStorage.removeItem('obsOverlayState');
+                location.reload();
+            });
+
+            // Initialize
+            loadLayout();
+        });
     </script>
 </body>
 </html>
