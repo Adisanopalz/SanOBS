@@ -1,1 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Widget Collection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        obs: {
+                            dark: '#1a1a2e',
+                            light: '#16213e',
+                            accent: '#e94560',
+                            text: '#ffffff'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: transparent; /* Essential for OBS */
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrollbars in OBS */
+        }
 
+        /* Utility class to hide the control panel when used in OBS */
+        .obs-mode .controls-panel {
+            display: none !important;
+        }
+
+        /* Marquee Animation */
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+            animation: marquee 15s linear infinite;
+        }
+        
+        .widget-container {
+            backdrop-filter: blur(10px);
+            background-color: rgba(22, 33, 62, 0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col p-4 relative" id="mainBody">
+
+    <!-- Controls Panel (User Interface to configure widgets) -->
+    <div id="controlsPanel" class="controls-panel absolute top-4 left-4 bg-obs-dark p-6 rounded-xl shadow-2xl border border-gray-700 w-80 z-50 transition-all duration-300">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-xl font-bold text-obs-accent">OBS Widgets Setup</h1>
+            <button onclick="toggleControls()" class="text-gray-400 hover:text-white" title="Hide Controls">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+        
+        <p class="text-xs text-gray-400 mb-4">Configure your widgets below. In OBS, interact with this source to hide this panel.</p>
+
+        <!-- Clock Settings -->
+        <div class="mb-4 bg-obs-light p-3 rounded-lg">
+            <h2 class="font-semibold mb-2 flex items-center gap-2">
+                <input type="checkbox" id="toggleClock" checked onchange="updateVisibility('clockWidget', this.checked)" class="accent-obs-accent"> Clock
+            </h2>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <label>Color</label>
+                    <input type="color" id="clockColor" value="#ffffff" onchange="updateStyle('clockTime', 'color', this.value)">
+                </div>
+                <div class="flex justify-between">
+                    <label>Size</label>
+                    <input type="range" min="1" max="5" step="0.5" value="3" oninput="updateStyle('clockTime', 'fontSize', this.value + 'rem')">
+                </div>
+            </div>
+        </div>
+
+        <!-- Marquee Settings -->
+        <div class="mb-4 bg-obs-light p-3 rounded-lg">
+            <h2 class="font-semibold mb-2 flex items-center gap-2">
+                <input type="checkbox" id="toggleMarquee" checked onchange="updateVisibility('marqueeWidget', this.checked)" class="accent-obs-accent"> Ticker / Marquee
+            </h2>
+            <div class="space-y-2 text-sm">
+                <input type="text" id="marqueeText" value="Selamat datang di stream! Jangan lupa follow dan subscribe." 
+                       class="w-full bg-obs-dark border border-gray-600 rounded p-1 mb-2 text-white"
+                       onkeyup="updateText('marqueeContent', this.value)">
+                <div class="flex justify-between">
+                    <label>Speed (s)</label>
+                    <input type="range" min="5" max="30" value="15" oninput="updateAnimationDuration('marqueeContent', this.value + 's')">
+                </div>
+            </div>
+        </div>
+
+        <!-- Timer Settings -->
+        <div class="mb-4 bg-obs-light p-3 rounded-lg">
+            <h2 class="font-semibold mb-2 flex items-center gap-2">
+                <input type="checkbox" id="toggleTimer" onchange="updateVisibility('timerWidget', this.checked)" class="accent-obs-accent"> Countdown Timer
+            </h2>
+            <div class="space-y-2 text-sm">
+                <div class="flex gap-2">
+                    <input type="number" id="timerMinutes" placeholder="Min" class="w-1/2 bg-obs-dark border border-gray-600 rounded p-1 text-white" value="5">
+                    <button onclick="startTimer()" class="w-1/2 bg-obs-accent hover:bg-red-600 text-white rounded p-1 transition-colors">Start</button>
+                </div>
+                <div class="flex justify-between mt-2">
+                    <label>Label</label>
+                    <input type="text" id="timerLabelInput" value="Starting in:" class="w-2/3 bg-obs-dark border border-gray-600 rounded p-1 text-white" onkeyup="updateText('timerLabel', this.value)">
+                </div>
+            </div>
+        </div>
+
+        <!-- Copy URL Helper -->
+        <div class="mt-6 pt-4 border-t border-gray-700">
+            <button onclick="copyUrlForObs()" class="w-full bg-gray-700 hover:bg-gray-600 text-white rounded p-2 text-sm flex items-center justify-center gap-2 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy URL for OBS
+            </button>
+        </div>
+    </div>
+
+    <!-- Restore Controls Button (Visible when controls are hidden) -->
+    <button id="showControlsBtn" onclick="toggleControls()" class="hidden absolute top-4 left-4 bg-obs-dark bg-opacity-50 hover:bg-opacity-100 text-gray-400 hover:text-white p-2 rounded-full z-50 transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+        </svg>
+    </button>
+
+    <!-- WIDGETS DISPLAY AREA -->
+    <!-- Note: In OBS, user will typically crop or move these around via custom CSS or layout -->
+    <div class="flex-1 w-full h-full relative pointer-events-none"> <!-- pointer-events-none lets clicks pass through to OBS -->
+        
+        <!-- Clock Widget -->
+        <div id="clockWidget" class="absolute top-8 right-8 widget-container px-6 py-3 rounded-2xl shadow-lg transition-opacity duration-300">
+            <div id="clockTime" class="font-bold text-5xl tracking-wider text-shadow" style="font-size: 3rem;">00:00:00</div>
+            <div id="clockDate" class="text-right text-gray-300 text-sm mt-1 uppercase tracking-widest font-semibold">Senin, 1 Jan</div>
+        </div>
+
+        <!-- Timer Widget (Hidden by default) -->
+        <div id="timerWidget" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 widget-container px-8 py-6 rounded-3xl shadow-2xl flex flex-col items-center border-obs-accent border-2">
+            <div id="timerLabel" class="text-obs-accent font-bold text-xl mb-2 tracking-widest uppercase">Starting in:</div>
+            <div id="timerDisplay" class="font-black text-7xl font-mono text-white tracking-tighter">05:00</div>
+        </div>
+
+        <!-- Marquee / Ticker Widget -->
+        <div id="marqueeWidget" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-11/12 max-w-4xl widget-container rounded-full overflow-hidden shadow-lg border-b-4 border-obs-accent flex items-center">
+            <div class="bg-obs-accent text-white px-4 py-2 font-bold z-10 whitespace-nowrap h-full flex items-center uppercase text-sm tracking-wider">
+                INFO
+            </div>
+            <div class="flex-1 overflow-hidden relative h-10 w-full">
+                <div id="marqueeContent" class="absolute whitespace-nowrap h-full flex items-center font-semibold text-lg text-gray-100 animate-marquee pl-full">
+                    Selamat datang di stream! Jangan lupa follow dan subscribe.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            startClock();
+            
+            // Check URL parameters for 'obs' mode to auto-hide controls
+            const urlParams = new URLSearchParams(window.location.search);
+            if(urlParams.has('obs')) {
+                document.body.classList.add('obs-mode');
+            }
+        });
+
+        // --- Controls Toggle ---
+        function toggleControls() {
+            const panel = document.getElementById('controlsPanel');
+            const btn = document.getElementById('showControlsBtn');
+            const isHidden = panel.classList.contains('hidden');
+
+            if (isHidden) {
+                panel.classList.remove('hidden');
+                btn.classList.add('hidden');
+            } else {
+                panel.classList.add('hidden');
+                btn.classList.remove('hidden');
+            }
+        }
+
+        // --- Helper Functions for Settings ---
+        function updateVisibility(elementId, isVisible) {
+            const el = document.getElementById(elementId);
+            if (isVisible) {
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        }
+
+        function updateStyle(elementId, property, value) {
+            document.getElementById(elementId).style[property] = value;
+        }
+
+        function updateText(elementId, text) {
+            document.getElementById(elementId).innerText = text;
+        }
+
+        function updateAnimationDuration(elementId, duration) {
+            document.getElementById(elementId).style.animationDuration = duration;
+        }
+
+        // --- Clock Logic ---
+        function startClock() {
+            const timeEl = document.getElementById('clockTime');
+            const dateEl = document.getElementById('clockDate');
+            
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+
+            setInterval(() => {
+                const now = new Date();
+                
+                // Format Time HH:MM:SS
+                const h = String(now.getHours()).padStart(2, '0');
+                const m = String(now.getMinutes()).padStart(2, '0');
+                const s = String(now.getSeconds()).padStart(2, '0');
+                timeEl.innerText = `${h}:${m}:${s}`;
+
+                // Format Date
+                const dayName = days[now.getDay()];
+                const date = now.getDate();
+                const monthName = months[now.getMonth()];
+                dateEl.innerText = `${dayName}, ${date} ${monthName}`;
+            }, 1000);
+        }
+
+        // --- Timer Logic ---
+        let timerInterval;
+        
+        function startTimer() {
+            // Ensure timer is visible
+            document.getElementById('toggleTimer').checked = true;
+            updateVisibility('timerWidget', true);
+
+            clearInterval(timerInterval);
+            
+            let minutes = parseInt(document.getElementById('timerMinutes').value) || 0;
+            let totalSeconds = minutes * 60;
+            const display = document.getElementById('timerDisplay');
+
+            function updateDisplay() {
+                const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+                const s = String(totalSeconds % 60).padStart(2, '0');
+                display.innerText = `${m}:${s}`;
+            }
+
+            updateDisplay(); // Initial display
+
+            timerInterval = setInterval(() => {
+                totalSeconds--;
+                if (totalSeconds < 0) {
+                    clearInterval(timerInterval);
+                    display.innerText = "00:00";
+                    // Optional: Play a sound or change color when done
+                    display.classList.add('text-obs-accent');
+                    setTimeout(() => display.classList.remove('text-obs-accent'), 2000);
+                    return;
+                }
+                updateDisplay();
+            }, 1000);
+        }
+
+        // --- Utility ---
+        function copyUrlForObs() {
+            // Create URL with ?obs parameter to auto-hide controls in OBS
+            const url = new URL(window.location.href);
+            url.searchParams.set('obs', 'true');
+            
+            // Create a temporary input to copy from
+            const tempInput = document.createElement("input");
+            tempInput.value = url.href;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                document.execCommand("copy");
+                // Visual feedback
+                const btn = document.querySelector('button[onclick="copyUrlForObs()"]');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.classList.replace('bg-gray-700', 'bg-green-600');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.replace('bg-green-600', 'bg-gray-700');
+                }, 2000);
+            } catch (err) {
+                console.error("Failed to copy", err);
+            } finally {
+                document.body.removeChild(tempInput);
+            }
+        }
+    </script>
+</body>
+</html>
