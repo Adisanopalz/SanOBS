@@ -311,7 +311,7 @@
             const rtext = urlParams.get('rtext') || '';
             const altext = urlParams.get('altext') || 'baru saja subscribe!';
 
-            //            if (rtext.trim() !== '') {
+            if (rtext.trim() !== '') {
                 document.getElementById('outMarqueeWrapper').classList.remove('hidden');
                 document.getElementById('outMarqueeText').innerHTML = `<i class="fas fa-satellite-dish text-purple-400 mr-2"></i> ${rtext} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <i class="fas fa-satellite-dish text-purple-400 mr-2"></i> ${rtext}`;
             }
@@ -469,7 +469,7 @@
             });
         }
 
-        //        function saveToLocal() {
+        function saveToLocal() {
             const data = {
                 yt: document.getElementById('inYoutube').value,
                 ig: document.getElementById('inInstagram').value,
