@@ -44,7 +44,10 @@
             transform: none !important;
             aspect-ratio: auto;
         }
-        .mode-overlay .widget { cursor: default; }
+        /* Ubah agar di mode overlay tetap bisa di drag saat mode Interact OBS */
+        .mode-overlay .widget { cursor: grab; pointer-events: auto; }
+        .mode-overlay .widget:active { cursor: grabbing; }
+        .mode-overlay .widget:hover { outline: 2px dashed rgba(255,255,255,0.3); outline-offset: 4px; }
 
         /* --- DASHBOARD STYLES --- */
         .bg-dots {
@@ -140,6 +143,19 @@
         }
         .widget:active { cursor: grabbing; z-index: 50; }
         body:not(.mode-overlay) .widget:hover { outline: 2px dashed var(--accent); outline-offset: 4px; }
+
+        /* Tombol Close Cepat untuk OBS Interact */
+        .widget-close {
+            position: absolute; top: -10px; right: -10px;
+            background: #ef4444; color: white; border-radius: 50%;
+            width: 24px; height: 24px; font-size: 12px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; opacity: 0; transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 2px solid #18181b;
+            z-index: 20;
+        }
+        .widget:hover .widget-close { opacity: 1; transform: scale(1); }
+        .widget-close:hover { background: #dc2626; transform: scale(1.1); }
 
         /* Specific Widgets (Design base, colors overridden by JS) */
         #widget-subcount {
@@ -441,22 +457,26 @@
                     
                     <!-- Widget: Subcount -->
                     <div id="widget-subcount" class="widget" data-id="subcount">
+                        <div class="widget-close" onclick="closeWidget(event, 'subcount')"><i class="fa-solid fa-xmark"></i></div>
                         <i class="fa-brands fa-youtube" id="sub-icon"></i>
                         <span id="display-subcount">0</span>
                     </div>
 
                     <!-- Widget: Marquee -->
                     <div id="widget-marquee" class="widget" data-id="marquee">
+                        <div class="widget-close" onclick="closeWidget(event, 'marquee')"><i class="fa-solid fa-xmark"></i></div>
                         <span class="marquee-content" id="display-marquee"></span>
                     </div>
 
                     <!-- Widget: Clock -->
                     <div id="widget-clock" class="widget" data-id="clock">
-                        12:00:00
+                        <div class="widget-close" onclick="closeWidget(event, 'clock')"><i class="fa-solid fa-xmark"></i></div>
+                        <span id="display-clock">12:00:00</span>
                     </div>
 
                     <!-- Widget: Social -->
                     <div id="widget-social" class="widget" data-id="social">
+                        <div class="widget-close" onclick="closeWidget(event, 'social')"><i class="fa-solid fa-xmark"></i></div>
                         <div class="flex gap-2">
                             <i class="fa-brands fa-instagram text-pink-500"></i>
                             <i class="fa-brands fa-tiktok text-white"></i>
@@ -533,7 +553,8 @@
             bindInputsToState(); // Set input values to match state
             applyStateToUI();    // Apply styles to canvas
             
-            if (!isOverlayMode) setupDraggables();
+            // Aktifkan draggable di KEDUA mode (Dashboard & OBS Overlay)
+            setupDraggables();
             startClock();
             
             // Auto fetch if API exists
@@ -765,6 +786,22 @@
             showToast("Copied to clipboard!");
         }
 
+        // Fungsi baru untuk menutup widget dari layer preview/OBS Interact
+        function closeWidget(e, id) {
+            e.stopPropagation(); // Cegah event drag tertrigger
+            appState.widgets[id].active = false;
+            applyStateToUI(); 
+            saveState(); // Menyimpan dan broadcast ke semua tab/OBS
+            if (!isOverlayMode) bindInputsToState(); // Update tampilan toggle di Dashboard
+            
+            if (isOverlayMode) {
+                // Beri tahu user di OBS Interact kalau berhasil ditutup
+                console.log(`Widget ${id} ditutup via Interact`);
+            } else {
+                showToast(`Widget disembunyikan`, 'info');
+            }
+        }
+
         function setupDraggables() {
             const container = document.getElementById('preview-container');
             const widgets = document.querySelectorAll('.widget');
@@ -774,7 +811,9 @@
                 let startX, startY, initialLeft, initialTop;
 
                 widget.addEventListener('mousedown', (e) => {
-                    // Don't drag if clicking on an input/interactive inside widget (though we don't have them here)
+                    // Jangan drag jika menekan tombol close
+                    if (e.target.closest('.widget-close')) return;
+
                     isDragging = true;
                     
                     // Get current positions in pixels relative to container
@@ -818,6 +857,8 @@
                         const id = widget.getAttribute('data-id');
                         appState.widgets[id].x = parseFloat(widget.style.left);
                         appState.widgets[id].y = parseFloat(widget.style.top);
+                        
+                        // SaveState sekarang memancarkan perubahan dari OBS ke Dashboard (Two-Way Sync)
                         saveState();
                     }
                 });
@@ -858,10 +899,10 @@
         }
 
         function startClock() {
-            const clockEl = document.getElementById('widget-clock');
+            const clockEl = document.getElementById('display-clock');
+            if(!clockEl) return;
             setInterval(() => {
                 const now = new Date();
-                // Add padding to ensure strict format HH:MM:SS
                 clockEl.innerText = now.toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
             }, 1000);
         }
