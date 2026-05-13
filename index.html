@@ -80,6 +80,30 @@
             opacity: 1;
             bottom: 50px;
         }
+
+        .marquee-container {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            background: linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(15,23,42,0.8) 10%, rgba(15,23,42,0.8) 90%, rgba(15,23,42,0) 100%);
+            padding: 8px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .marquee-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marqueeText 20s linear infinite;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: #e2e8f0;
+        }
+        
+        @keyframes marqueeText {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
     </style>
 </head>
 <body class="dashboard-mode">
@@ -149,6 +173,22 @@
                     </div>
                 </div>
 
+                <div class="border-t border-gray-700 pt-6">
+                    <h3 class="text-lg font-bold text-purple-300 mb-4"><i class="fas fa-bolt mr-2"></i> Ekstra Fitur Baru</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-300 mb-1"><i class="fas fa-text-width text-blue-400 w-5"></i> Running Text (Marquee)</label>
+                            <input type="text" id="inRunningText" placeholder="Contoh: Selamat datang di stream!" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                            <p class="text-[10px] text-gray-400 mt-1">Isi teks untuk dimunculkan berjalan di atas layar. Kosongkan jika tidak butuh.</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-300 mb-1"><i class="fas fa-bell text-yellow-400 w-5"></i> Teks Alert Notif</label>
+                            <input type="text" id="inAlertText" value="baru saja subscribe!" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                            <p class="text-[10px] text-gray-400 mt-1">Ubah teks untuk simulasi alert ketika ada yang follow/subscribe.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Generate Action -->
                 <div class="border-t border-gray-700 pt-6">
                     <button onclick="generateOBSLink()" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform transition hover:-translate-y-1">
@@ -185,6 +225,14 @@
     <!-- TAMPILAN OVERLAY (OBS) -->
     <div id="overlayView" class="hidden w-full h-full relative pointer-events-none">
         
+        <div id="outMarqueeWrapper" class="absolute top-0 left-0 w-full hidden">
+            <div class="marquee-container">
+                <div id="outMarqueeText" class="marquee-content text-lg drop-shadow-md">
+                    <!-- Teks berjalan diisi oleh JS -->
+                </div>
+            </div>
+        </div>
+
         <!-- Social Media Rotator (Kiri Bawah) -->
         <div class="absolute bottom-8 left-8 bg-[rgba(15,23,42,0.6)] backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-xl px-6 py-3 flex items-center gap-4 overflow-hidden h-16 min-w-[250px] shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]">
             <div id="outSocialRotator" class="flex items-center gap-3 w-full transition-all duration-500">
@@ -223,11 +271,11 @@
                 <i class="fas fa-star text-white drop-shadow-lg"></i>
             </div>
             <div class="bg-[rgba(15,23,42,0.8)] backdrop-blur-md px-8 py-3 text-center border-t-4 border-purple-500 rounded-xl shadow-2xl">
-                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-pink-300 uppercase tracking-wider">
-                    NEW FOLLOWER
+                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-pink-300 uppercase tracking-wider" id="outAlertTitle">
+                    NEW SUBSCRIBER
                 </h1>
                 <p class="text-xl mt-1 font-semibold text-white">
-                    <span class="text-yellow-300">SimulasiUser</span> baru saja follow!
+                    <span class="text-yellow-300" id="outAlertUser">SimulasiUser</span> <span id="outAlertDesc">baru saja follow!</span>
                 </p>
             </div>
         </div>
@@ -260,6 +308,13 @@
             const ytData = urlParams.get('yt') || '/ChannelKamu';
             const igData = urlParams.get('ig') || '@InstagramKamu';
             const gmode = urlParams.get('gmode') || 'manual';
+            const rtext = urlParams.get('rtext') || '';
+            const altext = urlParams.get('altext') || 'baru saja subscribe!';
+
+            //            if (rtext.trim() !== '') {
+                document.getElementById('outMarqueeWrapper').classList.remove('hidden');
+                document.getElementById('outMarqueeText').innerHTML = `<i class="fas fa-satellite-dish text-purple-400 mr-2"></i> ${rtext} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <i class="fas fa-satellite-dish text-purple-400 mr-2"></i> ${rtext}`;
+            }
 
             // 3. Terapkan Logika Berdasarkan Mode (Manual / Live Subs)
             if (gmode === 'manual') {
@@ -369,7 +424,26 @@
 
             // 5. Simulasi Alert (Muncul setiap 20 detik untuk preview)
             const outAlertBox = document.getElementById('outAlertBox');
+            const alertUsers = ["AsepGaming", "BudiSantoso", "SitiMabar", "ProPlayer99", "SiPalingGG", "KucingOyen"];
+            
             setInterval(() => {
+                // Randomize nama untuk simulasi
+                const randomUser = alertUsers[Math.floor(Math.random() * alertUsers.length)];
+                document.getElementById('outAlertUser').textContent = randomUser;
+                document.getElementById('outAlertDesc').textContent = altext;
+                
+                // Ubah judul & icon bergantung pada kata kunci
+                if(altext.toLowerCase().includes('sub') || altext.toLowerCase().includes('langganan')) {
+                    document.getElementById('outAlertTitle').textContent = "NEW SUBSCRIBER";
+                    document.getElementById('outAlertIcon').innerHTML = '<i class="fab fa-youtube text-white drop-shadow-lg"></i>';
+                } else if(altext.toLowerCase().includes('donasi') || altext.toLowerCase().includes('sawer')) {
+                    document.getElementById('outAlertTitle').textContent = "NEW DONATION";
+                    document.getElementById('outAlertIcon').innerHTML = '<i class="fas fa-coins text-white drop-shadow-lg"></i>';
+                } else {
+                    document.getElementById('outAlertTitle').textContent = "NEW FOLLOWER";
+                    document.getElementById('outAlertIcon').innerHTML = '<i class="fas fa-star text-white drop-shadow-lg"></i>';
+                }
+
                 // Munculkan
                 outAlertBox.style.opacity = 1;
                 outAlertBox.style.transform = 'translate(-50%, 0)'; // Slide in
@@ -387,6 +461,51 @@
             // ==========================================
             
             // Tampilan form generator (sudah diset di HTML secara default)
+            loadFromLocal(); // Load otomatis saat web di-refresh
+
+            // Auto-Save tiap ada ketikan/perubahan form
+            document.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('input', saveToLocal);
+            });
+        }
+
+        //        function saveToLocal() {
+            const data = {
+                yt: document.getElementById('inYoutube').value,
+                ig: document.getElementById('inInstagram').value,
+                gmode: document.getElementById('inGoalMode').value,
+                gtitle: document.getElementById('inGoalTitle').value,
+                gcurr: document.getElementById('inGoalCurrent').value,
+                gmax: document.getElementById('inGoalMax').value,
+                chid: document.getElementById('inChannelId').value,
+                api: document.getElementById('inApiKey').value,
+                rtext: document.getElementById('inRunningText').value,
+                altext: document.getElementById('inAlertText').value
+            };
+            localStorage.setItem('obsOverlaySave', JSON.stringify(data));
+        }
+
+        function loadFromLocal() {
+            const saved = localStorage.getItem('obsOverlaySave');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if(data.yt !== undefined) document.getElementById('inYoutube').value = data.yt;
+                    if(data.ig !== undefined) document.getElementById('inInstagram').value = data.ig;
+                    if(data.gmode !== undefined) document.getElementById('inGoalMode').value = data.gmode;
+                    if(data.gtitle !== undefined) document.getElementById('inGoalTitle').value = data.gtitle;
+                    if(data.gcurr !== undefined) document.getElementById('inGoalCurrent').value = data.gcurr;
+                    if(data.gmax !== undefined) document.getElementById('inGoalMax').value = data.gmax;
+                    if(data.chid !== undefined) document.getElementById('inChannelId').value = data.chid;
+                    if(data.api !== undefined) document.getElementById('inApiKey').value = data.api;
+                    if(data.rtext !== undefined) document.getElementById('inRunningText').value = data.rtext;
+                    if(data.altext !== undefined) document.getElementById('inAlertText').value = data.altext;
+                    
+                    toggleGoalMode(); // Update visual jika mode live/manual beda dari default
+                } catch(e) {
+                    console.error("Gagal membaca save data:", e);
+                }
+            }
         }
 
         // --- Fungsi Baru: Ganti Mode Goal di Dashboard ---
@@ -406,6 +525,11 @@
             const yt = document.getElementById('inYoutube').value;
             const ig = document.getElementById('inInstagram').value;
             const gmode = document.getElementById('inGoalMode').value;
+            const rtext = document.getElementById('inRunningText').value;
+            const altext = document.getElementById('inAlertText').value;
+
+            // Pastikan data tersimpan saat diklik
+            saveToLocal();
 
             // Dapatkan URL saat ini tanpa parameter query
             const baseUrl = window.location.href.split('?')[0];
@@ -414,7 +538,9 @@
             let finalUrl = `${baseUrl}?mode=overlay`
                          + `&yt=${encodeURIComponent(yt)}`
                          + `&ig=${encodeURIComponent(ig)}`
-                         + `&gmode=${encodeURIComponent(gmode)}`;
+                         + `&gmode=${encodeURIComponent(gmode)}`
+                         + `&rtext=${encodeURIComponent(rtext)}`
+                         + `&altext=${encodeURIComponent(altext)}`;
 
             // Racik tambahan parameter sesuai mode yang dipilih
             if (gmode === 'manual') {
