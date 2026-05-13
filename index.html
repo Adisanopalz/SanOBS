@@ -152,6 +152,31 @@
                     </div>
                 </div>
 
+                <!-- Penempatan Layout -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-th-large mr-2 text-indigo-400"></i>Penempatan Layout</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Posisi Sosial Media</label>
+                            <select id="inPosSocial" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <option value="bl">Kiri Bawah (Default)</option>
+                                <option value="ml">Kiri Tengah</option>
+                                <option value="tl">Kiri Atas</option>
+                                <option value="br">Kanan Bawah</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Posisi Target/Goal Bar</label>
+                            <select id="inPosGoal" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <option value="br">Kanan Bawah (Default)</option>
+                                <option value="mr">Kanan Tengah</option>
+                                <option value="tr">Kanan Atas</option>
+                                <option value="bl">Kiri Bawah</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Sosial Media -->
                 <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
                     <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-users mr-2 text-purple-400"></i>Sosial Media</h3>
@@ -260,86 +285,8 @@
             </div>
         </div>
 
-        <!-- Kolom Preview -->
-        <div class="w-full md:w-[600px] flex flex-col">
-            <div class="sticky top-8">
-                <h2 class="text-xl font-bold mb-4 flex items-center justify-between">
-                    <span><i class="fas fa-desktop mr-2"></i>Live Preview</span>
-                    <span class="text-xs bg-red-600 text-white px-2 py-1 rounded animate-pulse">LIVE VIEW</span>
-                </h2>
-                <!-- Frame Preview -->
-                <div class="relative w-full aspect-video bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 shadow-2xl" style="background-image: url('https://placehold.co/1280x720/1a1a2e/2a2a4e?text=SIMULASI+GAMEPLAY'); background-size: cover;">
-                    <iframe id="previewFrame" class="absolute inset-0 w-full h-full pointer-events-none" src=""></iframe>
-                </div>
-                <p class="text-xs text-gray-400 mt-3 text-center bg-gray-800 p-2 rounded-lg border border-gray-700">Tampilan di atas merepresentasikan dimensi asli 16:9 saat dimasukkan ke OBS.</p>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- BAGIAN 2: OVERLAY VISUAL (Tampil di OBS) -->
-    <div id="overlayScreen" class="hidden w-full h-screen relative">
-        
-        <!-- Canvas untuk Efek Partikel -->
-        <canvas id="fxCanvas"></canvas>
-
-        <!-- INFO WIDGET (Kiri Atas) -->
-        <div id="infoWidget" class="obs-widget top-10 left-8 hidden">
-            <div class="glass-panel-overlay px-4 py-2 flex items-center gap-3 theme-border shadow-lg">
-                <span class="relative flex h-3 w-3">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                </span>
-                <span id="outInfoText" class="font-poppins font-bold text-lg text-white tracking-wide"></span>
-            </div>
-        </div>
-
-        <!-- EVENT LIST (Kanan Atas, Bawah Jam) -->
-        <div id="eventListWidget" class="obs-widget top-28 right-8 hidden flex flex-col gap-2 opacity-90">
-            <div class="glass-panel-overlay px-4 py-2 flex items-center justify-between gap-4 theme-border shadow-md">
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-star theme-text text-sm"></i>
-                    <span class="text-xs text-gray-300 uppercase tracking-wider font-bold">Latest Sub</span>
-                </div>
-                <span class="font-bold text-sm text-white">AlexGaming</span>
-            </div>
-            <div class="glass-panel-overlay px-4 py-2 flex items-center justify-between gap-4 border-yellow-500/30 border-2 shadow-md bg-gray-900/80 rounded-xl">
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-coins text-yellow-400 text-sm"></i>
-                    <span class="text-xs text-gray-300 uppercase tracking-wider font-bold">Top Dono</span>
-                </div>
-                <span class="font-bold text-sm text-white">Sultan99 - Rp100rb</span>
-            </div>
-        </div>
-
-        <!-- Running Text (Marquee) -->
-        <div id="marqueeWrapper" class="marquee-container hidden">
-            <div id="outMarquee" class="marquee-text font-poppins text-lg"></div>
-        </div>
-
-        <!-- JAM DIGITAL (Kanan Atas) -->
-        <div id="clockWidget" class="obs-widget top-10 right-8 hidden">
-            <div class="glass-panel-overlay px-4 py-2 flex items-center gap-2 theme-border shadow-lg">
-                <i class="far fa-clock theme-text text-xl"></i>
-                <span id="clockText" class="font-poppins font-bold text-2xl text-white tracking-widest">00:00:00</span>
-            </div>
-        </div>
-
-        <!-- ALERT BOX (Tengah Atas) -->
-        <div class="obs-widget w-full flex justify-center mt-28">
-            <div id="alertBox" class="hidden glass-panel-overlay px-6 py-3 flex items-center gap-4 theme-gradient shadow-2xl theme-shadow">
-                <div id="alertIcon" class="bg-white text-gray-900 rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-inner">
-                    <i class="fab fa-youtube"></i>
-                </div>
-                <div>
-                    <div id="alertName" class="font-extrabold text-2xl font-poppins text-white tracking-wide">UserName</div>
-                    <div id="alertDesc" class="text-white/80 text-sm font-semibold">Baru saja Subscribe!</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SOCIAL MEDIA ROTATOR (Kiri Bawah) -->
-        <div class="obs-widget bottom-8 left-8">
+        <!-- SOCIAL MEDIA ROTATOR (Posisi Dinamis) -->
+        <div id="widgetSocial" class="obs-widget">
             <div class="glass-panel-overlay p-1 flex items-center gap-2 overflow-hidden w-[250px] h-[50px] theme-border shadow-lg">
                 <div id="socIcon" class="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center text-xl transition-all duration-500">
                     <i class="fab fa-youtube text-white"></i>
@@ -350,8 +297,8 @@
             </div>
         </div>
 
-        <!-- GOAL / LIVE STATS BAR (Kanan Bawah) -->
-        <div class="obs-widget bottom-8 right-8">
+        <!-- GOAL / LIVE STATS BAR (Posisi Dinamis) -->
+        <div id="widgetGoal" class="obs-widget">
             <div class="glass-panel-overlay p-3 w-[300px] theme-border shadow-lg">
                 <!-- Header: Judul & Angka -->
                 <div class="flex justify-between items-end mb-2">
@@ -406,7 +353,7 @@
 
         // --- LOGIKA DASHBOARD (LOAD & SAVE) ---
         function loadData() {
-            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles', 'inInfo'];
+            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles', 'inInfo', 'inPosSocial', 'inPosGoal'];
             fields.forEach(field => {
                 if(localStorage.getItem(field)) document.getElementById(field).value = localStorage.getItem(field);
             });
@@ -422,7 +369,7 @@
         }
 
         function saveData() {
-            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles', 'inInfo'];
+            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles', 'inInfo', 'inPosSocial', 'inPosGoal'];
             fields.forEach(field => {
                 localStorage.setItem(field, document.getElementById(field).value);
             });
@@ -461,6 +408,8 @@
                 theme: document.getElementById('inTheme').value,
                 fx: document.getElementById('inParticles').value,
                 info: document.getElementById('inInfo').value,
+                psoc: document.getElementById('inPosSocial').value,
+                pgoal: document.getElementById('inPosGoal').value,
                 clock: document.getElementById('inShowClock').checked ? '1' : '0',
                 sfx: document.getElementById('inSfx').checked ? '1' : '0',
                 elist: document.getElementById('inEventList').checked ? '1' : '0'
@@ -576,6 +525,8 @@
             const themeKey = urlParams.get('theme') || 'pink';
             const fxType = urlParams.get('fx') || 'none';
             const infoText = urlParams.get('info') || '';
+            const posSoc = urlParams.get('psoc') || 'bl';
+            const posGoal = urlParams.get('pgoal') || 'br';
             const showClock = urlParams.get('clock') === '1';
             const showSfx = urlParams.get('sfx') === '1';
             const showElist = urlParams.get('elist') === '1';
@@ -601,6 +552,22 @@
 
             // Inisialisasi Particle Effects
             initParticles(fxType);
+
+            // 0.5 TERAPKAN POSISI WIDGET (LAYOUT DRAG & DROP SIMULASI)
+            const positionMap = {
+                'bl': ['bottom-8', 'left-8'],
+                'br': ['bottom-8', 'right-8'],
+                'tl': ['top-28', 'left-8'],
+                'tr': ['top-56', 'right-8'], // top-56 agar aman dari jam dan event list
+                'ml': ['top-1/2', '-translate-y-1/2', 'left-8'],
+                'mr': ['top-1/2', '-translate-y-1/2', 'right-8']
+            };
+            
+            const wSocial = document.getElementById('widgetSocial');
+            wSocial.classList.add(...(positionMap[posSoc] || positionMap['bl']));
+            
+            const wGoal = document.getElementById('widgetGoal');
+            wGoal.classList.add(...(positionMap[posGoal] || positionMap['br']));
 
             // 1. Setup Jam Digital
             if (showClock) {
