@@ -242,6 +242,25 @@
                     </div>
                 </div>
 
+                <!-- Visibilitas Fitur (Aktif/Nonaktif) -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-eye mr-2 text-green-400"></i>Aktif / Nonaktifkan Widget</h3>
+                    <div class="flex flex-wrap gap-4">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inShowSoc" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                            <label class="text-sm font-semibold text-gray-200">Sosial Media</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inShowGoal" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                            <label class="text-sm font-semibold text-gray-200">Widget Target/Live</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inShowAlert" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                            <label class="text-sm font-semibold text-gray-200">Popup Alert</label>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Ekstra: Running Text, Jam & Alert -->
                 <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
                     <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-star mr-2 text-yellow-400"></i>Ekstra Fitur</h3>
@@ -359,7 +378,7 @@
             });
             
             // Checkbox khusus
-            ['inShowClock', 'inSfx', 'inEventList'].forEach(id => {
+            ['inShowClock', 'inSfx', 'inEventList', 'inShowSoc', 'inShowGoal', 'inShowAlert'].forEach(id => {
                 if(localStorage.getItem(id) !== null) {
                     document.getElementById(id).checked = localStorage.getItem(id) === 'true';
                 }
@@ -373,7 +392,7 @@
             fields.forEach(field => {
                 localStorage.setItem(field, document.getElementById(field).value);
             });
-            ['inShowClock', 'inSfx', 'inEventList'].forEach(id => {
+            ['inShowClock', 'inSfx', 'inEventList', 'inShowSoc', 'inShowGoal', 'inShowAlert'].forEach(id => {
                 localStorage.setItem(id, document.getElementById(id).checked);
             });
         }
@@ -412,7 +431,10 @@
                 pgoal: document.getElementById('inPosGoal').value,
                 clock: document.getElementById('inShowClock').checked ? '1' : '0',
                 sfx: document.getElementById('inSfx').checked ? '1' : '0',
-                elist: document.getElementById('inEventList').checked ? '1' : '0'
+                elist: document.getElementById('inEventList').checked ? '1' : '0',
+                ssoc: document.getElementById('inShowSoc').checked ? '1' : '0',
+                sgoal: document.getElementById('inShowGoal').checked ? '1' : '0',
+                salert: document.getElementById('inShowAlert').checked ? '1' : '0'
             });
 
             const fullUrl = window.location.href.split('?')[0] + '?' + params.toString();
@@ -530,6 +552,9 @@
             const showClock = urlParams.get('clock') === '1';
             const showSfx = urlParams.get('sfx') === '1';
             const showElist = urlParams.get('elist') === '1';
+            const showSocWidget = urlParams.get('ssoc') !== '0'; // Default nyala
+            const showGoalWidget = urlParams.get('sgoal') !== '0'; // Default nyala
+            const showPopAlert = urlParams.get('salert') !== '0'; // Default nyala
 
             // 0. TERAPKAN TEMA WARNA & EFEK
             const activeTheme = themeConfig[themeKey];
@@ -568,6 +593,10 @@
             
             const wGoal = document.getElementById('widgetGoal');
             wGoal.classList.add(...(positionMap[posGoal] || positionMap['br']));
+
+            // TERAPKAN VISIBILITAS (HIDE JIKA DINONAKTIFKAN)
+            if (!showSocWidget) wSocial.classList.add('hidden');
+            if (!showGoalWidget) wGoal.classList.add('hidden');
 
             // 1. Setup Jam Digital
             if (showClock) {
@@ -742,10 +771,13 @@
                 playAlertSound(); // Mainkan SFX
             };
 
-            setTimeout(() => {
-                triggerAlert();
-                setInterval(triggerAlert, Math.random() * 30000 + 45000);
-            }, 5000);
+            // Hanya jalankan loop Notifikasi Alert jika diaktifkan
+            if (showPopAlert) {
+                setTimeout(() => {
+                    triggerAlert();
+                    setInterval(triggerAlert, Math.random() * 30000 + 45000);
+                }, 5000);
+            }
         };
     </script>
 </body>
