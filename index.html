@@ -1,585 +1,922 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Monitor, Layout, Type, Clock, Target, MessageSquare, 
-  Bell, Settings, Plus, Trash2, Copy, Save, 
-  Maximize, Eye, Move, Play, Grid, MonitorPlay
-} from 'lucide-react';
-
-const CANVAS_WIDTH = 1920;
-const CANVAS_HEIGHT = 1080;
-
-// Default initial state
-const defaultScene = {
-  id: 'scene-1',
-  name: 'Main Gaming',
-  widgets: []
-};
-
-// Generate random ID
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
-// --- WIDGET RENDERERS ---
-
-const ClockWidget = ({ props }) => {
-  const [time, setTime] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  
-  return (
-    <div style={{ color: props.color, textShadow: `0 0 ${props.glow}px ${props.color}`, fontFamily: props.font }} className="flex items-center justify-center w-full h-full text-5xl font-bold tracking-wider">
-      {time.toLocaleTimeString()}
-    </div>
-  );
-};
-
-const TextWidget = ({ props }) => (
-  <div style={{ color: props.color, textShadow: `0 0 ${props.glow}px ${props.color}`, fontSize: `${props.fontSize}px`, fontFamily: props.font }} className="flex items-center justify-center w-full h-full font-bold text-center break-words">
-    {props.text}
-  </div>
-);
-
-const GoalWidget = ({ props }) => (
-  <div className="flex flex-col w-full h-full p-4 justify-between bg-black/40 backdrop-blur-md border border-white/10 rounded-xl" style={{ boxShadow: `0 0 ${props.glow}px ${props.color}40` }}>
-    <div className="flex justify-between font-bold text-lg mb-2" style={{ color: props.color, textShadow: `0 0 10px ${props.color}` }}>
-      <span>{props.title}</span>
-      <span>{props.current} / {props.target}</span>
-    </div>
-    <div className="w-full h-6 bg-gray-900 rounded-full overflow-hidden border border-gray-700 relative">
-      <div 
-        className="h-full transition-all duration-1000 ease-out relative"
-        style={{ width: `${(props.current / props.target) * 100}%`, backgroundColor: props.color, boxShadow: `0 0 20px ${props.color}` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/30 animate-pulse"></div>
-      </div>
-    </div>
-  </div>
-);
-
-const ChatWidget = ({ props }) => {
-  const dummyChat = [
-    { user: 'Ninja', msg: 'POGGERS stream bro!', color: '#ff0055' },
-    { user: 'Shrud', msg: 'Nice shot aimbot? 🎯', color: '#00ffcc' },
-    { user: 'GamerGirl', msg: 'Hahaha lol', color: '#ff00ff' }
-  ];
-  return (
-    <div className="flex flex-col justify-end w-full h-full p-4 overflow-hidden mask-image-b-to-t">
-      {dummyChat.map((chat, i) => (
-        <div key={i} className="mb-2 p-3 rounded-lg bg-black/50 backdrop-blur-sm border-l-4 animate-slide-in-right" style={{ borderColor: chat.color }}>
-          <span className="font-bold mr-2" style={{ color: chat.color, textShadow: `0 0 5px ${chat.color}` }}>{chat.user}:</span>
-          <span className="text-white drop-shadow-md font-medium">{chat.msg}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const AlertWidget = ({ props }) => {
-  return (
-    <div className="flex flex-col items-center justify-center w-full h-full relative">
-      <div className={`absolute inset-0 border-4 border-dashed opacity-20 rounded-xl ${props.testMode ? 'hidden' : 'block'}`} style={{ borderColor: props.color }}>
-        <p className="absolute top-2 left-2 text-xs text-white/50">Alert Area</p>
-      </div>
-      
-      {props.testMode && (
-        <div className="flex flex-col items-center animate-bounce-in">
-          <div className="text-6xl mb-4 animate-pulse">🎉</div>
-          <h2 className="text-3xl font-black italic tracking-widest text-center uppercase" style={{ color: '#fff', textShadow: `0 0 20px ${props.color}, 0 0 40px ${props.color}` }}>
-            <span style={{ color: props.color }}>NEW SUBSCRIBER!</span><br/>
-            NEXUS_GAMER
-          </h2>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Custom Engine for Drag & Drop and Resizing
-const WidgetNode = ({ widget, isSelected, onSelect, onUpdate }) => {
-  const nodeRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-
-  const handlePointerDown = (e) => {
-    e.stopPropagation();
-    onSelect(widget.id);
-    setIsDragging(true);
-  };
-
-  const handleResizeDown = (e) => {
-    e.stopPropagation();
-    onSelect(widget.id);
-    setIsResizing(true);
-  };
-
-  useEffect(() => {
-    const handlePointerMove = (e) => {
-      if (!isDragging && !isResizing) return;
-      
-      // Calculate scale factor based on container
-      const parent = nodeRef.current.parentElement;
-      const rect = parent.getBoundingClientRect();
-      const scaleX = CANVAS_WIDTH / rect.width;
-      const scaleY = CANVAS_HEIGHT / rect.height;
-
-      if (isDragging) {
-        onUpdate(widget.id, {
-          x: widget.x + (e.movementX * scaleX),
-          y: widget.y + (e.movementY * scaleY)
-        });
-      } else if (isResizing) {
-        onUpdate(widget.id, {
-          w: Math.max(50, widget.w + (e.movementX * scaleX)),
-          h: Math.max(50, widget.h + (e.movementY * scaleY))
-        });
-      }
-    };
-
-    const handlePointerUp = () => {
-      setIsDragging(false);
-      setIsResizing(false);
-    };
-
-    if (isDragging || isResizing) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-    }
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [isDragging, isResizing, widget, onUpdate]);
-
-  const renderContent = () => {
-    switch (widget.type) {
-      case 'clock': return <ClockWidget props={widget.props} />;
-      case 'text': return <TextWidget props={widget.props} />;
-      case 'goal': return <GoalWidget props={widget.props} />;
-      case 'chat': return <ChatWidget props={widget.props} />;
-      case 'alert': return <AlertWidget props={widget.props} />;
-      default: return <div className="text-white">Unknown Widget</div>;
-    }
-  };
-
-  return (
-    <div
-      ref={nodeRef}
-      onPointerDown={handlePointerDown}
-      className={`absolute group cursor-move ${isSelected ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-black z-50' : 'z-10 hover:ring-1 hover:ring-white/30'}`}
-      style={{
-        left: `${widget.x}px`,
-        top: `${widget.y}px`,
-        width: `${widget.w}px`,
-        height: `${widget.h}px`,
-        opacity: widget.props.opacity || 1
-      }}
-    >
-      {renderContent()}
-      
-      {isSelected && (
-        <div 
-          onPointerDown={handleResizeDown}
-          className="absolute -right-3 -bottom-3 w-6 h-6 bg-cyan-400 rounded-full cursor-nwse-resize border-4 border-black shadow-[0_0_10px_#00ffcc] flex items-center justify-center"
-        >
-          <div className="w-2 h-2 bg-black rounded-full" />
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default function App() {
-  // State
-  const [scene, setScene] = useState(defaultScene);
-  const [selectedId, setSelectedId] = useState(null);
-  const [obsMode, setObsMode] = useState(false);
-  const [showGrid, setShowGrid] = useState(true);
-  const [saveIndicator, setSaveIndicator] = useState('');
-
-  // Load from LocalStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('nexus_overlay_save');
-    if (saved) {
-      try {
-        setScene(JSON.parse(saved));
-      } catch (e) {
-        console.error("Save corrupted");
-      }
-    }
-  }, []);
-
-  // Auto Save
-  useEffect(() => {
-    if (scene.widgets.length >= 0) {
-      localStorage.setItem('nexus_overlay_save', JSON.stringify(scene));
-      setSaveIndicator('Autosaved just now');
-      const timer = setTimeout(() => setSaveIndicator(''), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [scene]);
-
-  const addWidget = (type) => {
-    const defaultProps = {
-      clock: { color: '#00ffcc', glow: 15, font: 'Inter' },
-      text: { text: 'NEXUS STREAM', color: '#ff0055', glow: 20, fontSize: 60, font: 'Inter' },
-      goal: { title: 'Sub Goal', current: 42, target: 100, color: '#aa00ff', glow: 15 },
-      chat: { theme: 'dark' },
-      alert: { color: '#00ffcc', testMode: false }
-    };
-
-    const newWidget = {
-      id: generateId(),
-      type,
-      x: CANVAS_WIDTH / 2 - 150,
-      y: CANVAS_HEIGHT / 2 - 50,
-      w: 300,
-      h: type === 'goal' ? 120 : type === 'chat' ? 400 : 100,
-      props: { opacity: 1, ...defaultProps[type] }
-    };
-
-    setScene(prev => ({ ...prev, widgets: [...prev.widgets, newWidget] }));
-    setSelectedId(newWidget.id);
-  };
-
-  const updateWidget = useCallback((id, updates) => {
-    setScene(prev => ({
-      ...prev,
-      widgets: prev.widgets.map(w => w.id === id ? { ...w, ...updates } : w)
-    }));
-  }, []);
-
-  const updateWidgetProps = (id, propKey, value) => {
-    setScene(prev => ({
-      ...prev,
-      widgets: prev.widgets.map(w => 
-        w.id === id ? { ...w, props: { ...w.props, [propKey]: value } } : w
-      )
-    }));
-  };
-
-  const deleteWidget = (id) => {
-    setScene(prev => ({ ...prev, widgets: prev.widgets.filter(w => w.id !== id) }));
-    setSelectedId(null);
-  };
-
-  const selectedWidget = scene.widgets.find(w => w.id === selectedId);
-
-  if (obsMode) {
-    return (
-      <div className="w-screen h-screen overflow-hidden bg-transparent">
-        {/* Helper to exit OBS mode during testing */}
-        <div className="absolute top-2 left-2 z-[999] opacity-0 hover:opacity-100 transition-opacity">
-          <button onClick={() => setObsMode(false)} className="bg-red-500 text-white px-4 py-2 rounded shadow-lg text-xs font-bold">EXIT OBS MODE</button>
-        </div>
-        <div className="w-full h-full relative" style={{ aspectRatio: '16/9' }}>
-           {scene.widgets.map(widget => (
-            <div key={widget.id} className="absolute" style={{ left: widget.x, top: widget.y, width: widget.w, height: widget.h, opacity: widget.props.opacity }}>
-              {widget.type === 'clock' && <ClockWidget props={widget.props} />}
-              {widget.type === 'text' && <TextWidget props={widget.props} />}
-              {widget.type === 'goal' && <GoalWidget props={widget.props} />}
-              {widget.type === 'chat' && <ChatWidget props={widget.props} />}
-              {widget.type === 'alert' && <AlertWidget props={{...widget.props, testMode: false}} />} {/* Force hide test mode in OBS */}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] text-slate-200 font-sans overflow-hidden flex flex-col relative selection:bg-cyan-500/30">
-      
-      {/* Background Decorative Grid */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] opacity-50 pointer-events-none" />
-
-      {/* TOP NAVBAR */}
-      <header className="h-16 border-b border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between px-6 z-20">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center shadow-[0_0_15px_rgba(0,255,204,0.4)]">
-            <Layout className="w-5 h-5 text-black" />
-          </div>
-          <h1 className="font-black text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-            NEXUS <span className="font-light text-cyan-400">STUDIO</span>
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-green-400 font-mono">{saveIndicator}</span>
-          <div className="h-6 w-px bg-white/10 mx-2" />
-          <button 
-            onClick={() => setShowGrid(!showGrid)}
-            className={`p-2 rounded-lg transition-colors ${showGrid ? 'bg-cyan-500/20 text-cyan-400' : 'hover:bg-white/5 text-gray-400'}`}
-            title="Toggle Grid"
-          >
-            <Grid className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={() => setObsMode(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-lg font-bold text-sm shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all"
-          >
-            <MonitorPlay className="w-4 h-4" />
-            OBS BROWSER MODE
-          </button>
-        </div>
-      </header>
-
-      {/* MAIN WORKSPACE */}
-      <main className="flex-1 flex overflow-hidden z-10">
-        
-        {/* LEFT SIDEBAR - WIDGET TOOLS */}
-        <aside className="w-64 border-r border-white/10 bg-black/60 backdrop-blur-xl p-4 flex flex-col gap-6 overflow-y-auto z-20">
-          <div>
-            <h2 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Add Widgets</h2>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => addWidget('text')} className="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/50 rounded-xl transition-all">
-                <Type className="w-6 h-6" />
-                <span className="text-xs font-medium">Text</span>
-              </button>
-              <button onClick={() => addWidget('clock')} className="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 border border-white/5 hover:border-cyan-500/50 rounded-xl transition-all">
-                <Clock className="w-6 h-6" />
-                <span className="text-xs font-medium">Clock</span>
-              </button>
-              <button onClick={() => addWidget('goal')} className="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-purple-500/10 hover:text-purple-400 border border-white/5 hover:border-purple-500/50 rounded-xl transition-all">
-                <Target className="w-6 h-6" />
-                <span className="text-xs font-medium">Sub Goal</span>
-              </button>
-              <button onClick={() => addWidget('chat')} className="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-pink-500/10 hover:text-pink-400 border border-white/5 hover:border-pink-500/50 rounded-xl transition-all">
-                <MessageSquare className="w-6 h-6" />
-                <span className="text-xs font-medium">Live Chat</span>
-              </button>
-              <button onClick={() => addWidget('alert')} className="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-yellow-500/10 hover:text-yellow-400 border border-white/5 hover:border-yellow-500/50 rounded-xl transition-all col-span-2">
-                <Bell className="w-6 h-6" />
-                <span className="text-xs font-medium">Alert Box</span>
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <h2 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Layers</h2>
-            <div className="flex flex-col gap-1">
-              {scene.widgets.map(w => (
-                <div 
-                  key={w.id} 
-                  onClick={() => setSelectedId(w.id)}
-                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${selectedId === w.id ? 'bg-cyan-500/20 text-white' : 'hover:bg-white/5 text-gray-400'}`}
-                >
-                  <span className="text-sm capitalize flex items-center gap-2">
-                    <Layout className="w-4 h-4" /> {w.type}
-                  </span>
-                  <button onClick={(e) => { e.stopPropagation(); deleteWidget(w.id); }} className="p-1 hover:text-red-400">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              {scene.widgets.length === 0 && <p className="text-xs text-gray-600 italic">No layers yet.</p>}
-            </div>
-          </div>
-        </aside>
-
-        {/* CENTER CANVAS AREA */}
-        <section className="flex-1 bg-[#12121a] relative flex items-center justify-center p-8 overflow-hidden" onClick={() => setSelectedId(null)}>
-          <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-purple-500/5 pointer-events-none" />
-          
-          {/* Canvas Wrapper for fixed aspect ratio scaling */}
-          <div className="relative bg-black/80 shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-gray-800 ring-1 ring-white/10" 
-               style={{ 
-                 aspectRatio: '16/9', 
-                 width: '100%', 
-                 maxWidth: 'calc(100vh * 16/9 - 100px)',
-                 maxHeight: '100%'
-               }}>
-            
-            {/* The Actual Scaled Canvas */}
-            <div 
-              className={`absolute top-0 left-0 w-full h-full overflow-hidden transform-gpu origin-top-left ${showGrid ? 'bg-[url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0wIDM5LjVoNDBWNDBINHptMzkuNS0zOS41djQwaC41VjBoLS41eiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjwvc3ZnPg==")]' : ''}`}
-            >
-              {/* Scale child content internally based on resize */}
-              <div style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(var(--scale-factor, 1))`, transformOrigin: 'top left' }} 
-                   ref={node => {
-                     if(node) {
-                       const parent = node.parentElement;
-                       const scale = parent.clientWidth / CANVAS_WIDTH;
-                       node.style.setProperty('--scale-factor', scale);
-                     }
-                   }}>
-                {scene.widgets.map(widget => (
-                  <WidgetNode 
-                    key={widget.id}
-                    widget={widget}
-                    isSelected={selectedId === widget.id}
-                    onSelect={setSelectedId}
-                    onUpdate={updateWidget}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* RIGHT SIDEBAR - PROPERTIES */}
-        <aside className="w-80 border-l border-white/10 bg-black/60 backdrop-blur-xl flex flex-col z-20">
-          <div className="h-14 border-b border-white/10 flex items-center px-4">
-            <h2 className="font-bold text-sm tracking-widest flex items-center gap-2">
-              <Settings className="w-4 h-4 text-cyan-400" /> PROPERTIES
-            </h2>
-          </div>
-          
-          <div className="p-4 flex-1 overflow-y-auto space-y-6">
-            {!selectedWidget ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-3">
-                <Move className="w-12 h-12 opacity-20" />
-                <p className="text-sm">Select a widget to edit</p>
-              </div>
-            ) : (
-              <div className="animate-fade-in space-y-6">
-                
-                {/* POSITION & SIZE */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">Transform</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white/5 rounded p-2 border border-white/5">
-                      <span className="text-[10px] text-gray-400 uppercase">X Pos</span>
-                      <input type="number" value={Math.round(selectedWidget.x)} onChange={e => updateWidget(selectedWidget.id, {x: Number(e.target.value)})} className="w-full bg-transparent text-white outline-none font-mono text-sm" />
-                    </div>
-                    <div className="bg-white/5 rounded p-2 border border-white/5">
-                      <span className="text-[10px] text-gray-400 uppercase">Y Pos</span>
-                      <input type="number" value={Math.round(selectedWidget.y)} onChange={e => updateWidget(selectedWidget.id, {y: Number(e.target.value)})} className="w-full bg-transparent text-white outline-none font-mono text-sm" />
-                    </div>
-                    <div className="bg-white/5 rounded p-2 border border-white/5">
-                      <span className="text-[10px] text-gray-400 uppercase">Width</span>
-                      <input type="number" value={Math.round(selectedWidget.w)} onChange={e => updateWidget(selectedWidget.id, {w: Number(e.target.value)})} className="w-full bg-transparent text-white outline-none font-mono text-sm" />
-                    </div>
-                    <div className="bg-white/5 rounded p-2 border border-white/5">
-                      <span className="text-[10px] text-gray-400 uppercase">Height</span>
-                      <input type="number" value={Math.round(selectedWidget.h)} onChange={e => updateWidget(selectedWidget.id, {h: Number(e.target.value)})} className="w-full bg-transparent text-white outline-none font-mono text-sm" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* COMMON STYLE */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">Appearance</h3>
-                  
-                  {selectedWidget.props.color !== undefined && (
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Primary Color</label>
-                      <div className="flex items-center gap-2">
-                        <input type="color" value={selectedWidget.props.color} onChange={e => updateWidgetProps(selectedWidget.id, 'color', e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0" />
-                        <input type="text" value={selectedWidget.props.color} onChange={e => updateWidgetProps(selectedWidget.id, 'color', e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-1.5 text-sm font-mono outline-none focus:border-cyan-500" />
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedWidget.props.glow !== undefined && (
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Neon Glow Intensity: {selectedWidget.props.glow}px</label>
-                      <input type="range" min="0" max="50" value={selectedWidget.props.glow} onChange={e => updateWidgetProps(selectedWidget.id, 'glow', Number(e.target.value))} className="w-full accent-cyan-500" />
-                    </div>
-                  )}
-                  
-                  <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Opacity: {Math.round((selectedWidget.props.opacity || 1) * 100)}%</label>
-                    <input type="range" min="0.1" max="1" step="0.1" value={selectedWidget.props.opacity || 1} onChange={e => updateWidgetProps(selectedWidget.id, 'opacity', Number(e.target.value))} className="w-full accent-cyan-500" />
-                  </div>
-                </div>
-
-                {/* WIDGET SPECIFIC PROPS */}
-                {(selectedWidget.type === 'text' || selectedWidget.type === 'clock') && (
-                  <div className="space-y-3 pt-4 border-t border-white/10">
-                    <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">Typography</h3>
-                    {selectedWidget.type === 'text' && (
-                      <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Content</label>
-                        <textarea value={selectedWidget.props.text} onChange={e => updateWidgetProps(selectedWidget.id, 'text', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm outline-none focus:border-cyan-500 min-h-[80px]" />
-                      </div>
-                    )}
-                    {selectedWidget.type === 'text' && (
-                      <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Font Size: {selectedWidget.props.fontSize}px</label>
-                        <input type="range" min="12" max="200" value={selectedWidget.props.fontSize} onChange={e => updateWidgetProps(selectedWidget.id, 'fontSize', Number(e.target.value))} className="w-full accent-cyan-500" />
-                      </div>
-                    )}
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Font Family</label>
-                      <select value={selectedWidget.props.font} onChange={e => updateWidgetProps(selectedWidget.id, 'font', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm outline-none focus:border-cyan-500 text-white [&>option]:bg-gray-900">
-                        <option value="Inter">Inter (Clean)</option>
-                        <option value="Oswald">Oswald (Tall)</option>
-                        <option value="Orbitron">Orbitron (Sci-Fi)</option>
-                        <option value="Press Start 2P">8-Bit (Retro)</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                {selectedWidget.type === 'goal' && (
-                  <div className="space-y-3 pt-4 border-t border-white/10">
-                    <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">Goal Settings</h3>
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Title</label>
-                      <input type="text" value={selectedWidget.props.title} onChange={e => updateWidgetProps(selectedWidget.id, 'title', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm outline-none focus:border-cyan-500" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                       <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Current</label>
-                        <input type="number" value={selectedWidget.props.current} onChange={e => updateWidgetProps(selectedWidget.id, 'current', Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm outline-none focus:border-cyan-500 font-mono" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Target</label>
-                        <input type="number" value={selectedWidget.props.target} onChange={e => updateWidgetProps(selectedWidget.id, 'target', Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm outline-none focus:border-cyan-500 font-mono" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedWidget.type === 'alert' && (
-                  <div className="space-y-3 pt-4 border-t border-white/10">
-                    <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">Alert Controls</h3>
-                    <button 
-                      onClick={() => {
-                        updateWidgetProps(selectedWidget.id, 'testMode', false);
-                        setTimeout(() => updateWidgetProps(selectedWidget.id, 'testMode', true), 100);
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-white/10 hover:bg-yellow-500/20 hover:text-yellow-400 border border-white/10 hover:border-yellow-500 rounded-lg transition-colors font-bold"
-                    >
-                      <Play className="w-4 h-4" /> Trigger Test Alert
-                    </button>
-                    <p className="text-xs text-gray-500 text-center">Alerts are hidden in OBS until triggered.</p>
-                  </div>
-                )}
-
-              </div>
-            )}
-          </div>
-        </aside>
-      </main>
-      
-      {/* GLOBAL STYLES & ANIMATIONS */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Orbitron:wght@400;700;900&family=Oswald:wght@400;700&family=Press+Start+2P&display=swap');
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-        
-        @keyframes slideInRight { 
-          from { transform: translateX(50px); opacity: 0; } 
-          to { transform: translateX(0); opacity: 1; } 
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Overlay Studio - All-in-One OBS Builder</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Orbitron:wght@400;700;900&family=Oswald:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        oswald: ['Oswald', 'sans-serif'],
+                        pixel: ['"Press Start 2P"', 'cursive']
+                    },
+                    colors: {
+                        nexus: {
+                            dark: '#0a0a0f',
+                            panel: '#12121a',
+                            border: 'rgba(255, 255, 255, 0.08)',
+                            cyan: '#00ffcc',
+                            purple: '#aa00ff',
+                            pink: '#ff0055'
+                        }
+                    }
+                }
+            }
         }
-        .animate-slide-in-right { animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+
+        /* Animations */
+        @keyframes slideInRight {
+            from { transform: translateX(20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in { animation: slideInRight 0.3s ease-out forwards; }
+        
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; box-shadow: 0 0 20px var(--glow-color); }
+            50% { opacity: 0.7; box-shadow: 0 0 10px var(--glow-color); }
+        }
+        .animate-alert { animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         
         @keyframes bounceIn {
-          0% { transform: scale(0.1); opacity: 0; }
-          60% { transform: scale(1.2); opacity: 1; }
-          100% { transform: scale(1); }
+            0% { transform: scale(0.1); opacity: 0; }
+            60% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); }
         }
-        .animate-bounce-in { animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
-        .mask-image-b-to-t {
-          mask-image: linear-gradient(to top, black 50%, transparent 100%);
-          -webkit-mask-image: linear-gradient(to top, black 50%, transparent 100%);
+        /* Canvas & Grid Utilities */
+        .bg-grid {
+            background-image: linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
         }
-      `}} />
-    </div>
-  );
-}
+        
+        /* Widget Selection Styles */
+        .widget-node {
+            position: absolute;
+            user-select: none;
+            touch-action: none; /* Prevent browser pan/zoom on touch */
+        }
+        .widget-node:hover { outline: 1px solid rgba(255, 255, 255, 0.3); }
+        .widget-node.selected { outline: 2px solid #00ffcc; outline-offset: 2px; z-index: 50 !important; }
+        
+        .resize-handle {
+            position: absolute;
+            right: -6px;
+            bottom: -6px;
+            width: 14px;
+            height: 14px;
+            background: #00ffcc;
+            border: 2px solid #000;
+            border-radius: 50%;
+            cursor: nwse-resize;
+            display: none;
+            box-shadow: 0 0 10px rgba(0,255,204,0.5);
+        }
+        .widget-node.selected .resize-handle { display: block; }
+
+        /* Form Inputs */
+        .panel-input {
+            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px; padding: 6px 10px; color: white; font-size: 13px; outline: none;
+            transition: border-color 0.2s;
+        }
+        .panel-input:focus { border-color: #00ffcc; }
+        
+        /* Glassmorphism Panel */
+        .glass-panel {
+            background: rgba(18, 18, 26, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* OBS Mode Styles */
+        body.obs-mode #app-header, 
+        body.obs-mode #sidebar-left, 
+        body.obs-mode #sidebar-right {
+            display: none !important;
+        }
+        body.obs-mode #workspace {
+            padding: 0; background: transparent;
+        }
+        body.obs-mode #canvas-wrapper {
+            max-width: 100%; max-height: 100%; box-shadow: none; border: none; outline: none;
+        }
+        body.obs-mode .bg-grid { background-image: none !important; }
+        body.obs-mode .widget-node { outline: none !important; }
+        body.obs-mode .resize-handle { display: none !important; }
+        body.obs-mode .alert-placeholder { display: none !important; }
+    </style>
+</head>
+<body class="bg-nexus-dark text-slate-200 h-screen w-screen overflow-hidden flex flex-col font-sans selection:bg-nexus-cyan selection:text-black">
+
+    <header id="app-header" class="h-16 glass-panel flex items-center justify-between px-6 z-30 relative shadow-md">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-nexus-cyan to-nexus-purple flex items-center justify-center shadow-[0_0_20px_rgba(0,255,204,0.3)]">
+                <i class="fa-solid fa-layer-group text-black text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-black text-xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 m-0 leading-tight">
+                    NEXUS <span class="font-light text-nexus-cyan">STUDIO</span>
+                </h1>
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Overlay Builder Pro</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                <div id="save-status-indicator" class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span id="save-status-text" class="text-xs text-gray-400 font-medium">Autosaved</span>
+            </div>
+            <div class="h-6 w-px bg-nexus-border mx-2"></div>
+            <button onclick="toggleGrid()" class="w-10 h-10 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-white" title="Toggle Grid">
+                <i class="fa-solid fa-border-all"></i>
+            </button>
+            <button onclick="clearCanvas()" class="w-10 h-10 rounded-lg hover:bg-red-500/20 transition-colors text-gray-400 hover:text-red-400" title="Clear Canvas">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+            <button onclick="enterObsMode()" class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-nexus-purple to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-lg font-bold text-sm shadow-[0_0_20px_rgba(170,0,255,0.4)] transition-all ml-2">
+                <i class="fa-brands fa-obs"></i> OBS PREVIEW
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden relative z-10">
+        
+        <aside id="sidebar-left" class="w-72 glass-panel border-r border-nexus-border flex flex-col z-20 transition-all duration-300">
+            <!-- Widgets Palette -->
+            <div class="p-5 border-b border-nexus-border">
+                <h2 class="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-plus text-nexus-cyan"></i> Add Elements
+                </h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="addWidget('text')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nexus-cyan/10 hover:text-nexus-cyan border border-white/5 hover:border-nexus-cyan/50 rounded-xl transition-all group">
+                        <i class="fa-solid fa-font text-xl text-gray-400 group-hover:text-nexus-cyan transition-colors"></i>
+                        <span class="text-xs font-semibold">Text</span>
+                    </button>
+                    <button onclick="addWidget('clock')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nexus-cyan/10 hover:text-nexus-cyan border border-white/5 hover:border-nexus-cyan/50 rounded-xl transition-all group">
+                        <i class="fa-solid fa-clock text-xl text-gray-400 group-hover:text-nexus-cyan transition-colors"></i>
+                        <span class="text-xs font-semibold">Clock</span>
+                    </button>
+                    <button onclick="addWidget('goal')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nexus-purple/10 hover:text-nexus-purple border border-white/5 hover:border-nexus-purple/50 rounded-xl transition-all group">
+                        <i class="fa-solid fa-bullseye text-xl text-gray-400 group-hover:text-nexus-purple transition-colors"></i>
+                        <span class="text-xs font-semibold">Sub Goal</span>
+                    </button>
+                    <button onclick="addWidget('chat')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nexus-pink/10 hover:text-nexus-pink border border-white/5 hover:border-nexus-pink/50 rounded-xl transition-all group">
+                        <i class="fa-solid fa-comments text-xl text-gray-400 group-hover:text-nexus-pink transition-colors"></i>
+                        <span class="text-xs font-semibold">Live Chat</span>
+                    </button>
+                    <button onclick="addWidget('alert')" class="col-span-2 flex items-center justify-center gap-3 p-3 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 hover:from-yellow-500/20 hover:to-orange-500/20 text-yellow-500 border border-yellow-500/30 hover:border-yellow-500/60 rounded-xl transition-all">
+                        <i class="fa-solid fa-bell text-lg"></i>
+                        <span class="text-xs font-bold uppercase tracking-wider">Alert Box</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Layer Manager -->
+            <div class="flex-1 overflow-y-auto p-5">
+                <h2 class="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-bars-staggered text-gray-400"></i> Layers
+                </h2>
+                <div id="layer-list" class="flex flex-col gap-2">
+                    <!-- Layers injected here via JS -->
+                </div>
+            </div>
+        </aside>
+
+        <section id="workspace" class="flex-1 bg-[#0f0f15] relative flex items-center justify-center p-8 overflow-hidden">
+            <!-- Background Decoration -->
+            <div class="absolute inset-0 bg-gradient-to-br from-nexus-cyan/5 to-nexus-purple/5 pointer-events-none"></div>
+            
+            <!-- OBS Exit Button (Hidden in normal mode) -->
+            <div id="obs-exit-btn" class="absolute top-4 left-4 z-50 hidden">
+                <button onclick="exitObsMode()" class="bg-red-500/90 hover:bg-red-400 text-white px-6 py-3 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.5)] font-bold tracking-wider flex items-center gap-2 backdrop-blur-md">
+                    <i class="fa-solid fa-arrow-left"></i> EXIT OBS PREVIEW
+                </button>
+            </div>
+
+            <!-- Canvas Container (Maintains 16:9 Aspect Ratio) -->
+            <div id="canvas-wrapper" class="relative bg-black/90 shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-gray-800 ring-1 ring-white/5 rounded-sm overflow-hidden" 
+                 style="aspect-ratio: 16/9; width: 100%; max-width: calc(100vh * 16/9 - 160px); max-height: 100%;">
+                
+                <!-- The Scalable Canvas -->
+                <div id="canvas" class="absolute top-0 left-0 w-[1920px] h-[1080px] origin-top-left bg-grid">
+                    <!-- Widgets injected here via JS -->
+                </div>
+            </div>
+        </section>
+
+        <aside id="sidebar-right" class="w-80 glass-panel border-l border-nexus-border flex flex-col z-20">
+            <div class="h-14 border-b border-nexus-border flex items-center px-5 bg-white/[0.02]">
+                <h2 class="font-bold text-sm tracking-widest flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-nexus-cyan"></i> PROPERTIES
+                </h2>
+            </div>
+            
+            <div id="properties-panel" class="p-5 flex-1 overflow-y-auto">
+                <!-- Empty State -->
+                <div id="prop-empty-state" class="flex flex-col items-center justify-center h-full text-gray-500 gap-4 opacity-50">
+                    <i class="fa-solid fa-object-ungroup text-5xl"></i>
+                    <p class="text-sm font-medium">Select an element to edit</p>
+                </div>
+
+                <!-- Dynamic Form (Hidden by default) -->
+                <div id="prop-form" class="hidden space-y-6 animate-slide-in">
+                    
+                    <!-- Transform Tools -->
+                    <div class="space-y-3">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Transform</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase mb-1 block">X Pos</label>
+                                <input type="number" id="prop-x" class="panel-input font-mono" onchange="updateSelected('x', this.value)">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase mb-1 block">Y Pos</label>
+                                <input type="number" id="prop-y" class="panel-input font-mono" onchange="updateSelected('y', this.value)">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase mb-1 block">Width</label>
+                                <input type="number" id="prop-w" class="panel-input font-mono" onchange="updateSelected('w', this.value)">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase mb-1 block">Height</label>
+                                <input type="number" id="prop-h" class="panel-input font-mono" onchange="updateSelected('h', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-nexus-border">
+
+                    <!-- Appearance Tools -->
+                    <div class="space-y-4">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Appearance</h3>
+                        
+                        <!-- Color Picker -->
+                        <div id="prop-group-color" class="hidden">
+                            <label class="text-xs text-gray-300 mb-2 block">Primary Color</label>
+                            <div class="flex items-center gap-3">
+                                <div class="relative w-10 h-10 rounded overflow-hidden border border-white/20 cursor-pointer">
+                                    <input type="color" id="prop-color" class="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" onchange="updateSelectedProp('color', this.value); document.getElementById('prop-color-hex').value = this.value;">
+                                </div>
+                                <input type="text" id="prop-color-hex" class="panel-input flex-1 uppercase font-mono" onchange="updateSelectedProp('color', this.value); document.getElementById('prop-color').value = this.value;">
+                            </div>
+                        </div>
+
+                        <!-- Glow Slider -->
+                        <div id="prop-group-glow" class="hidden">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-xs text-gray-300">Neon Glow</label>
+                                <span id="glow-val" class="text-xs text-nexus-cyan font-mono">20px</span>
+                            </div>
+                            <input type="range" id="prop-glow" min="0" max="50" class="w-full accent-nexus-cyan" oninput="document.getElementById('glow-val').innerText = this.value + 'px'; updateSelectedProp('glow', this.value)">
+                        </div>
+
+                        <!-- Opacity Slider -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-xs text-gray-300">Opacity</label>
+                                <span id="opacity-val" class="text-xs text-nexus-cyan font-mono">100%</span>
+                            </div>
+                            <input type="range" id="prop-opacity" min="0.1" max="1" step="0.05" class="w-full accent-nexus-cyan" oninput="document.getElementById('opacity-val').innerText = Math.round(this.value * 100) + '%'; updateSelectedProp('opacity', this.value)">
+                        </div>
+                    </div>
+
+                    <!-- Typography Tools (Text/Clock) -->
+                    <div id="prop-group-typography" class="hidden space-y-4 pt-4 border-t border-nexus-border">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Typography</h3>
+                        
+                        <div id="prop-group-text" class="hidden">
+                            <label class="text-xs text-gray-300 mb-1 block">Content</label>
+                            <textarea id="prop-text" rows="2" class="panel-input resize-none" oninput="updateSelectedProp('text', this.value)"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-300 mb-1 block">Font Family</label>
+                            <select id="prop-font" class="panel-input bg-[#1a1a24]" onchange="updateSelectedProp('font', this.value)">
+                                <option value="Inter">Inter (Clean)</option>
+                                <option value="Oswald">Oswald (Tall)</option>
+                                <option value="Orbitron">Orbitron (Sci-Fi)</option>
+                                <option value="'Press Start 2P'">8-Bit (Retro)</option>
+                            </select>
+                        </div>
+
+                        <div id="prop-group-fontsize" class="hidden">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-xs text-gray-300">Font Size</label>
+                                <span id="fontsize-val" class="text-xs text-nexus-cyan font-mono">60px</span>
+                            </div>
+                            <input type="range" id="prop-fontsize" min="12" max="250" class="w-full accent-nexus-cyan" oninput="document.getElementById('fontsize-val').innerText = this.value + 'px'; updateSelectedProp('fontSize', this.value)">
+                        </div>
+                    </div>
+
+                    <!-- Goal Tools -->
+                    <div id="prop-group-goal" class="hidden space-y-4 pt-4 border-t border-nexus-border">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Goal Settings</h3>
+                        <div>
+                            <label class="text-xs text-gray-300 mb-1 block">Title</label>
+                            <input type="text" id="prop-title" class="panel-input" oninput="updateSelectedProp('title', this.value)">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-gray-300 mb-1 block">Current</label>
+                                <input type="number" id="prop-current" class="panel-input font-mono" oninput="updateSelectedProp('current', this.value)">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-300 mb-1 block">Target</label>
+                                <input type="number" id="prop-target" class="panel-input font-mono" oninput="updateSelectedProp('target', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alert Tools -->
+                    <div id="prop-group-alert" class="hidden space-y-4 pt-4 border-t border-nexus-border">
+                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Alert Controls</h3>
+                        <button onclick="triggerAlert()" class="w-full py-3 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 hover:border-yellow-500 rounded-lg transition-colors font-bold flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-play"></i> Trigger Test Alert
+                        </button>
+                        <p class="text-[10px] text-gray-500 text-center leading-relaxed">Alerts remain hidden on the canvas until an event triggers them.</p>
+                    </div>
+
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        // --- CONSTANTS & STATE ---
+        const CANVAS_WIDTH = 1920;
+        const CANVAS_HEIGHT = 1080;
+        let scaleFactor = 1;
+        
+        let state = {
+            widgets: [],
+            selectedId: null,
+            showGrid: true
+        };
+
+        const defaultProps = {
+            text: { text: 'NEXUS STREAM', color: '#00ffcc', glow: 20, fontSize: 80, font: 'Inter', opacity: 1 },
+            clock: { color: '#ffffff', glow: 15, font: 'Orbitron', fontSize: 60, opacity: 1 },
+            goal: { title: 'Follower Goal', current: 42, target: 100, color: '#aa00ff', glow: 15, opacity: 1 },
+            chat: { color: '#ff0055', opacity: 1 },
+            alert: { color: '#ff0055', glow: 30, opacity: 1 }
+        };
+
+        const domElements = {
+            canvas: document.getElementById('canvas'),
+            wrapper: document.getElementById('canvas-wrapper'),
+            layerList: document.getElementById('layerList'),
+            workspace: document.getElementById('workspace')
+        };
+
+        // --- INIT & CORE FUNCTIONS ---
+        function init() {
+            loadState();
+            setupCanvasScaling();
+            setupWorkspaceClick();
+            startClockLoop();
+            renderAll();
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('nexus_html_save');
+            if (saved) {
+                try {
+                    state = JSON.parse(saved);
+                    // Reset selected on load
+                    state.selectedId = null; 
+                } catch (e) { console.error('Save corrupted', e); }
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('nexus_html_save', JSON.stringify(state));
+            
+            // Visual indicator
+            const ind = document.getElementById('save-status-indicator');
+            const txt = document.getElementById('save-status-text');
+            ind.classList.remove('bg-gray-600');
+            ind.classList.add('bg-green-500', 'animate-pulse');
+            txt.innerText = 'Saving...';
+            
+            setTimeout(() => {
+                ind.classList.remove('bg-green-500', 'animate-pulse');
+                ind.classList.add('bg-gray-600');
+                txt.innerText = 'Saved';
+            }, 800);
+        }
+
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        // --- CANVAS SCALING ---
+        function setupCanvasScaling() {
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const rect = entry.contentRect;
+                    scaleFactor = rect.width / CANVAS_WIDTH;
+                    domElements.canvas.style.transform = `scale(${scaleFactor})`;
+                }
+            });
+            resizeObserver.observe(domElements.wrapper);
+            // Initial call
+            scaleFactor = domElements.wrapper.clientWidth / CANVAS_WIDTH;
+            domElements.canvas.style.transform = `scale(${scaleFactor})`;
+        }
+
+        function toggleGrid() {
+            state.showGrid = !state.showGrid;
+            if(state.showGrid) domElements.canvas.classList.add('bg-grid');
+            else domElements.canvas.classList.remove('bg-grid');
+            saveState();
+        }
+
+        // --- WIDGET MANAGEMENT ---
+        function addWidget(type) {
+            const w = {
+                id: 'w_' + generateId(),
+                type: type,
+                x: CANVAS_WIDTH / 2 - 150,
+                y: CANVAS_HEIGHT / 2 - 50,
+                w: 300,
+                h: type === 'goal' ? 120 : type === 'chat' ? 400 : type === 'alert' ? 300 : 100,
+                props: JSON.parse(JSON.stringify(defaultProps[type])) // Deep copy
+            };
+            
+            state.widgets.push(w);
+            state.selectedId = w.id;
+            
+            createWidgetElement(w);
+            renderLayers();
+            updatePropertiesPanel();
+            saveState();
+        }
+
+        function deleteWidget(id) {
+            state.widgets = state.widgets.filter(w => w.id !== id);
+            if(state.selectedId === id) state.selectedId = null;
+            
+            const el = document.getElementById(id);
+            if(el) el.remove();
+            
+            renderLayers();
+            updatePropertiesPanel();
+            saveState();
+        }
+
+        function clearCanvas() {
+            if(confirm("Are you sure you want to delete all elements?")) {
+                state.widgets = [];
+                state.selectedId = null;
+                domElements.canvas.innerHTML = '';
+                renderLayers();
+                updatePropertiesPanel();
+                saveState();
+            }
+        }
+
+        function selectWidget(id, event) {
+            if(event) event.stopPropagation();
+            state.selectedId = id;
+            
+            // Update classes
+            document.querySelectorAll('.widget-node').forEach(el => el.classList.remove('selected'));
+            if(id) {
+                const el = document.getElementById(id);
+                if(el) el.classList.add('selected');
+            }
+            
+            renderLayers();
+            updatePropertiesPanel();
+        }
+
+        function setupWorkspaceClick() {
+            domElements.workspace.addEventListener('pointerdown', (e) => {
+                if(e.target === domElements.workspace || e.target === domElements.wrapper || e.target === domElements.canvas) {
+                    selectWidget(null);
+                }
+            });
+        }
+
+        // --- RENDERING ---
+        function renderAll() {
+            if(state.showGrid) domElements.canvas.classList.add('bg-grid');
+            else domElements.canvas.classList.remove('bg-grid');
+            
+            domElements.canvas.innerHTML = '';
+            state.widgets.forEach(w => createWidgetElement(w));
+            
+            if(state.selectedId) selectWidget(state.selectedId);
+            renderLayers();
+            updatePropertiesPanel();
+        }
+
+        function renderLayers() {
+            const list = document.getElementById('layer-list');
+            list.innerHTML = '';
+            
+            if(state.widgets.length === 0) {
+                list.innerHTML = `<div class="text-xs text-gray-600 italic text-center py-4">No layers added yet.</div>`;
+                return;
+            }
+
+            // Render in reverse order (top layer first)
+            [...state.widgets].reverse().forEach(w => {
+                const isSelected = w.id === state.selectedId;
+                const iconMap = { text: 'fa-font', clock: 'fa-clock', goal: 'fa-bullseye', chat: 'fa-comments', alert: 'fa-bell' };
+                
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors border ${isSelected ? 'bg-nexus-cyan/10 border-nexus-cyan/50 text-white' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`;
+                div.onclick = (e) => selectWidget(w.id, e);
+                
+                div.innerHTML = `
+                    <span class="text-xs font-semibold capitalize flex items-center gap-3">
+                        <i class="fa-solid ${iconMap[w.type]} w-4 text-center ${isSelected ? 'text-nexus-cyan' : ''}"></i> 
+                        ${w.type}
+                    </span>
+                    <button onclick="deleteWidget('${w.id}'); event.stopPropagation();" class="w-6 h-6 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-trash-can text-[10px]"></i>
+                    </button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function createWidgetElement(w) {
+            let el = document.getElementById(w.id);
+            if(!el) {
+                el = document.createElement('div');
+                el.id = w.id;
+                el.className = 'widget-node';
+                
+                const content = document.createElement('div');
+                content.className = 'widget-content w-full h-full';
+                el.appendChild(content);
+
+                const handle = document.createElement('div');
+                handle.className = 'resize-handle';
+                el.appendChild(handle);
+
+                domElements.canvas.appendChild(el);
+                
+                // Attach Drag/Resize Events
+                setupDragAndResize(el, w.id);
+            }
+
+            // Update Geometry
+            el.style.left = w.x + 'px';
+            el.style.top = w.y + 'px';
+            el.style.width = w.w + 'px';
+            el.style.height = w.h + 'px';
+            el.style.opacity = w.props.opacity;
+
+            // Update Content HTML
+            const content = el.querySelector('.widget-content');
+            content.innerHTML = getWidgetHTML(w);
+        }
+
+        function updateWidgetDOM(id) {
+            const w = state.widgets.find(w => w.id === id);
+            if(w) createWidgetElement(w); // Reuses element, updates properties
+        }
+
+        // --- WIDGET HTML TEMPLATES ---
+        function getWidgetHTML(w) {
+            const p = w.props;
+            
+            if(w.type === 'text') {
+                return `<div class="flex items-center justify-center w-full h-full font-bold text-center break-words" 
+                             style="color: ${p.color}; text-shadow: 0 0 ${p.glow}px ${p.color}; font-size: ${p.fontSize}px; font-family: ${p.font};">
+                            ${p.text.replace(/\n/g, '<br/>')}
+                        </div>`;
+            } 
+            
+            else if(w.type === 'clock') {
+                return `<div class="clock-widget flex items-center justify-center w-full h-full font-bold tracking-wider" 
+                             style="color: ${p.color}; text-shadow: 0 0 ${p.glow}px ${p.color}; font-size: ${p.fontSize || 60}px; font-family: ${p.font};">
+                            00:00:00
+                        </div>`;
+            }
+            
+            else if(w.type === 'goal') {
+                const percent = Math.min(100, Math.max(0, (p.current / p.target) * 100));
+                return `
+                    <div class="flex flex-col w-full h-full p-5 justify-between bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl" 
+                         style="box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 ${p.glow}px ${p.color}20">
+                        <div class="flex justify-between font-bold text-xl mb-3" style="color: ${p.color}; text-shadow: 0 0 10px ${p.color}80; font-family: 'Inter'">
+                            <span class="tracking-wide uppercase">${p.title}</span>
+                            <span>${p.current} / ${p.target}</span>
+                        </div>
+                        <div class="w-full h-8 bg-gray-900 rounded-full overflow-hidden border border-gray-700 relative shadow-inner">
+                            <div class="h-full transition-all duration-1000 ease-out relative flex items-center justify-end px-2"
+                                 style="width: ${percent}%; background-color: ${p.color}; box-shadow: 0 0 20px ${p.color}">
+                                 <div class="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"></div>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            else if(w.type === 'chat') {
+                const chats = [
+                    { u: 'NexusFan', m: 'This stream is fire! 🔥' },
+                    { u: 'ProGamer', m: 'Nice play man' },
+                    { u: 'Kitten123', m: 'pogchamp' }
+                ];
+                let chatHtml = chats.map((c, i) => `
+                    <div class="mb-3 p-3 rounded-xl bg-black/60 backdrop-blur-md border-l-4" style="border-color: ${p.color}">
+                        <span class="font-bold mr-2" style="color: ${p.color}; text-shadow: 0 0 5px ${p.color}">${c.u}</span>
+                        <span class="text-white drop-shadow font-medium text-sm">${c.m}</span>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="flex flex-col justify-end w-full h-full p-2 overflow-hidden" 
+                         style="mask-image: linear-gradient(to top, black 60%, transparent 100%); -webkit-mask-image: linear-gradient(to top, black 60%, transparent 100%); font-family:'Inter'">
+                        ${chatHtml}
+                    </div>`;
+            }
+
+            else if(w.type === 'alert') {
+                return `
+                    <div class="flex flex-col items-center justify-center w-full h-full relative font-sans">
+                        <div class="alert-placeholder absolute inset-0 border-2 border-dashed rounded-2xl flex items-center justify-center" style="border-color: ${p.color}40; background: ${p.color}05;">
+                            <span class="text-xs uppercase tracking-widest font-bold" style="color: ${p.color}80"><i class="fa-solid fa-bell mr-2"></i> Alert Area</span>
+                        </div>
+                        <div id="alert-anim-${w.id}" class="hidden flex-col items-center absolute">
+                            <div class="w-24 h-24 mb-6 rounded-full flex items-center justify-center bg-black border-4 shadow-2xl relative" style="border-color: ${p.color}; box-shadow: 0 0 ${p.glow}px ${p.color}">
+                                <i class="fa-solid fa-star text-4xl" style="color: ${p.color}"></i>
+                                <div class="absolute inset-0 rounded-full animate-ping opacity-50" style="background: ${p.color}"></div>
+                            </div>
+                            <h2 class="text-4xl font-black italic tracking-widest text-center uppercase" style="color: #fff; text-shadow: 0 0 10px ${p.color}, 0 0 30px ${p.color}">
+                                <span style="color: ${p.color}">NEW FOLLOWER!</span><br/>
+                                <span class="text-2xl mt-2 block opacity-90">AWESOME_USER</span>
+                            </h2>
+                        </div>
+                    </div>`;
+            }
+            return '';
+        }
+
+        function setupDragAndResize(el, id) {
+            let isDragging = false;
+            let isResizing = false;
+            let startX, startY, initialX, initialY, initialW, initialH;
+
+            const handle = el.querySelector('.resize-handle');
+
+            // --- DRAG ---
+            el.addEventListener('pointerdown', (e) => {
+                if(e.target === handle || document.body.classList.contains('obs-mode')) return;
+                e.stopPropagation();
+                selectWidget(id);
+                
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const w = state.widgets.find(w => w.id === id);
+                initialX = w.x;
+                initialY = w.y;
+                
+                el.setPointerCapture(e.pointerId);
+            });
+
+            el.addEventListener('pointermove', (e) => {
+                if(!isDragging) return;
+                
+                // Calculate movement considering scale factor
+                const dx = (e.clientX - startX) / scaleFactor;
+                const dy = (e.clientY - startY) / scaleFactor;
+                
+                let newX = initialX + dx;
+                let newY = initialY + dy;
+                
+                // Snap to grid lightly
+                if(state.showGrid) {
+                    if(Math.abs(newX % 40) < 5) newX = Math.round(newX / 40) * 40;
+                    if(Math.abs(newY % 40) < 5) newY = Math.round(newY / 40) * 40;
+                }
+
+                // Direct DOM update for performance
+                el.style.left = newX + 'px';
+                el.style.top = newY + 'px';
+            });
+
+            el.addEventListener('pointerup', (e) => {
+                if(!isDragging) return;
+                isDragging = false;
+                el.releasePointerCapture(e.pointerId);
+                
+                // Sync state and save
+                const w = state.widgets.find(w => w.id === id);
+                w.x = parseFloat(el.style.left);
+                w.y = parseFloat(el.style.top);
+                updatePropertiesPanel(); // update text boxes
+                saveState();
+            });
+
+            // --- RESIZE ---
+            handle.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                selectWidget(id);
+                
+                isResizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const w = state.widgets.find(w => w.id === id);
+                initialW = w.w;
+                initialH = w.h;
+                
+                handle.setPointerCapture(e.pointerId);
+            });
+
+            handle.addEventListener('pointermove', (e) => {
+                if(!isResizing) return;
+                
+                const dx = (e.clientX - startX) / scaleFactor;
+                const dy = (e.clientY - startY) / scaleFactor;
+                
+                const newW = Math.max(50, initialW + dx);
+                const newH = Math.max(50, initialH + dy);
+                
+                el.style.width = newW + 'px';
+                el.style.height = newH + 'px';
+            });
+
+            handle.addEventListener('pointerup', (e) => {
+                if(!isResizing) return;
+                isResizing = false;
+                handle.releasePointerCapture(e.pointerId);
+                
+                const w = state.widgets.find(w => w.id === id);
+                w.w = parseFloat(el.style.width);
+                w.h = parseFloat(el.style.height);
+                updatePropertiesPanel();
+                saveState();
+            });
+        }
+
+        function updatePropertiesPanel() {
+            const emptyState = document.getElementById('prop-empty-state');
+            const form = document.getElementById('prop-form');
+            
+            if(!state.selectedId) {
+                emptyState.classList.remove('hidden');
+                form.classList.add('hidden');
+                return;
+            }
+
+            const w = state.widgets.find(w => w.id === state.selectedId);
+            if(!w) return;
+
+            emptyState.classList.add('hidden');
+            form.classList.remove('hidden');
+
+            // Populate Transform
+            document.getElementById('prop-x').value = Math.round(w.x);
+            document.getElementById('prop-y').value = Math.round(w.y);
+            document.getElementById('prop-w').value = Math.round(w.w);
+            document.getElementById('prop-h').value = Math.round(w.h);
+
+            // Populate Appearance (Common)
+            if(w.props.color !== undefined) {
+                document.getElementById('prop-group-color').classList.remove('hidden');
+                document.getElementById('prop-color').value = w.props.color;
+                document.getElementById('prop-color-hex').value = w.props.color;
+            } else {
+                document.getElementById('prop-group-color').classList.add('hidden');
+            }
+
+            if(w.props.glow !== undefined) {
+                document.getElementById('prop-group-glow').classList.remove('hidden');
+                document.getElementById('prop-glow').value = w.props.glow;
+                document.getElementById('glow-val').innerText = w.props.glow + 'px';
+            } else {
+                document.getElementById('prop-group-glow').classList.add('hidden');
+            }
+            
+            document.getElementById('prop-opacity').value = w.props.opacity || 1;
+            document.getElementById('opacity-val').innerText = Math.round((w.props.opacity || 1) * 100) + '%';
+
+            // Reset Groups
+            ['typography', 'text', 'fontsize', 'goal', 'alert'].forEach(id => {
+                document.getElementById('prop-group-' + id).classList.add('hidden');
+            });
+
+            // Populate Specifics
+            if(w.type === 'text' || w.type === 'clock') {
+                document.getElementById('prop-group-typography').classList.remove('hidden');
+                document.getElementById('prop-font').value = w.props.font || 'Inter';
+                
+                if(w.type === 'text') {
+                    document.getElementById('prop-group-text').classList.remove('hidden');
+                    document.getElementById('prop-text').value = w.props.text;
+                }
+                
+                if(w.props.fontSize !== undefined) {
+                    document.getElementById('prop-group-fontsize').classList.remove('hidden');
+                    document.getElementById('prop-fontsize').value = w.props.fontSize;
+                    document.getElementById('fontsize-val').innerText = w.props.fontSize + 'px';
+                }
+            }
+            else if(w.type === 'goal') {
+                document.getElementById('prop-group-goal').classList.remove('hidden');
+                document.getElementById('prop-title').value = w.props.title;
+                document.getElementById('prop-current').value = w.props.current;
+                document.getElementById('prop-target').value = w.props.target;
+            }
+            else if(w.type === 'alert') {
+                document.getElementById('prop-group-alert').classList.remove('hidden');
+            }
+        }
+
+        // Called by input elements in the form
+        function updateSelected(key, val) {
+            if(!state.selectedId) return;
+            const w = state.widgets.find(w => w.id === state.selectedId);
+            w[key] = parseFloat(val);
+            updateWidgetDOM(w.id);
+            saveState();
+        }
+
+        function updateSelectedProp(key, val) {
+            if(!state.selectedId) return;
+            const w = state.widgets.find(w => w.id === state.selectedId);
+            
+            // Parse numbers if needed
+            if(['glow', 'fontSize', 'current', 'target', 'opacity'].includes(key)) val = parseFloat(val);
+            
+            w.props[key] = val;
+            updateWidgetDOM(w.id);
+            saveState();
+        }
+
+        // --- SPECIAL FUNCTIONS ---
+        function triggerAlert() {
+            if(!state.selectedId) return;
+            const animDiv = document.getElementById(`alert-anim-${state.selectedId}`);
+            if(animDiv) {
+                animDiv.classList.remove('hidden');
+                animDiv.classList.add('animate-alert');
+                
+                // Hide placeholder during test
+                const parent = animDiv.parentElement;
+                const ph = parent.querySelector('.alert-placeholder');
+                if(ph) ph.style.opacity = '0';
+
+                setTimeout(() => {
+                    animDiv.classList.add('hidden');
+                    animDiv.classList.remove('animate-alert');
+                    if(ph) ph.style.opacity = '1';
+                }, 4000);
+            }
+        }
+
+        function startClockLoop() {
+            setInterval(() => {
+                const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+                document.querySelectorAll('.clock-widget').forEach(el => {
+                    el.innerText = now;
+                });
+            }, 1000);
+        }
+
+        function enterObsMode() {
+            selectWidget(null); // deselect all
+            document.body.classList.add('obs-mode');
+            document.getElementById('obs-exit-btn').classList.remove('hidden');
+        }
+
+        function exitObsMode() {
+            document.body.classList.remove('obs-mode');
+            document.getElementById('obs-exit-btn').classList.add('hidden');
+            setupCanvasScaling(); // recalculate scale
+        }
+
+        // --- START APP ---
+        window.onload = init;
+
+    </script>
+</body>
+</html>
