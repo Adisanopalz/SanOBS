@@ -304,6 +304,20 @@
             </div>
         </div>
 
+        <!-- Kolom Preview Frame -->
+        <div class="flex-1 max-w-2xl hidden md:flex flex-col items-center">
+            <h2 class="text-xl font-bold mb-4 text-gray-300"><i class="fas fa-desktop mr-2"></i>Live Preview</h2>
+            <div class="w-full aspect-video bg-black rounded-xl overflow-hidden border-4 border-gray-700 shadow-2xl relative">
+                <!-- Frame untuk menampilkan hasil generate -->
+                <iframe id="previewFrame" src="about:blank" class="w-full h-full border-0 absolute inset-0 z-10 pointer-events-none"></iframe>
+                <!-- Dummy Background Game untuk ilustrasi -->
+                <div class="absolute inset-0 bg-gradient-to-br from-indigo-900 to-gray-900 flex items-center justify-center opacity-50 z-0">
+                    <span class="text-indigo-400/30 text-3xl font-bold tracking-widest uppercase">Dummy Gameplay</span>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4 text-center px-8">Klik "Generate" di kiri untuk melihat perubahan. Frame ini menyimulasikan tampilan asli (16:9) saat dimasukkan ke OBS.</p>
+        </div>
+
         <!-- SOCIAL MEDIA ROTATOR (Posisi Dinamis) -->
         <div id="widgetSocial" class="obs-widget">
             <div class="glass-panel-overlay p-1 flex items-center gap-2 overflow-hidden w-[250px] h-[50px] theme-border shadow-lg">
