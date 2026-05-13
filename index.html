@@ -3,382 +3,526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Streamer Overlay Studio</title>
+    <title>Streamer Studio Pro - Custom OBS Overlay</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Poppins:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Poppins:wght@500;700;800&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --bg-color: #0f172a;
-            --panel-bg: #1e293b;
-            --accent: #3b82f6;
+            --bg-base: #09090b; /* Zinc 950 */
+            --bg-panel: #18181b; /* Zinc 900 */
+            --accent: #6366f1; /* Indigo 500 */
+            --accent-hover: #4f46e5;
+            --border-color: #27272a; /* Zinc 800 */
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: white;
-            overflow-x: hidden;
+            background-color: var(--bg-base);
+            color: #f4f4f5;
+            overflow: hidden; /* Prevent body scroll, manage within panels */
         }
 
-        /* Kelas khusus saat mode OBS Overlay berjalan */
+        /* --- MODE OBS OVERLAY --- */
         body.mode-overlay {
-            background-color: transparent !important; /* Wajib transparan untuk OBS */
+            background-color: transparent !important;
             overflow: hidden;
         }
-
-        .mode-overlay #dashboard-ui {
-            display: none !important;
-        }
-
+        .mode-overlay #dashboard-ui { display: none !important; }
         .mode-overlay #preview-container {
             width: 100vw;
             height: 100vh;
             border: none;
             border-radius: 0;
-            background: transparent;
+            background: transparent !important;
             box-shadow: none;
             position: absolute;
             top: 0;
             left: 0;
             margin: 0;
-            transform: none;
+            transform: none !important;
+            aspect-ratio: auto;
+        }
+        .mode-overlay .widget { cursor: default; }
+
+        /* --- DASHBOARD STYLES --- */
+        .bg-dots {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
         }
 
-        /* Container Preview di Dashboard */
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-panel); }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+        /* Input Color Styling */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
+            overflow: hidden;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 2px solid var(--border-color); border-radius: 50%; }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            cursor: pointer;
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+
+        /* --- PREVIEW CONTAINER --- */
+        #preview-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 2rem;
+        }
+
         #preview-container {
             position: relative;
-            background-image: url('https://placehold.co/1920x1080/2a2a2a/555555?text=Preview+Area+(Background+Transparan+di+OBS)');
+            background-color: #18181b; /* Fallback */
+            background-image: url('https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1920&auto=format&fit=crop'); /* Dummy Game BG */
             background-size: cover;
             background-position: center;
-            border: 2px dashed #475569;
-            aspect-ratio: 16/9;
-            width: 100%;
-            max-height: 80vh;
-            overflow: hidden;
-            border-radius: 0.5rem;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            /* Force 16:9 aspect ratio */
+            aspect-ratio: 16 / 9;
+            width: 100%;
+            max-height: 85vh;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        #preview-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4); /* Darken bg a bit */
+            pointer-events: none;
         }
 
-        /* Widget Styling Umum */
+        /* --- WIDGETS BASE --- */
         .widget {
             position: absolute;
             cursor: grab;
             user-select: none;
-            transition: opacity 0.3s ease;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
             font-family: 'Poppins', sans-serif;
+            transform-origin: top left; /* Important for scaling */
+            transition: outline 0.2s;
+            z-index: 10;
         }
+        .widget:active { cursor: grabbing; z-index: 50; }
+        body:not(.mode-overlay) .widget:hover { outline: 2px dashed var(--accent); outline-offset: 4px; }
 
-        .widget:active {
-            cursor: grabbing;
+        /* Specific Widgets (Design base, colors overridden by JS) */
+        #widget-subcount {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 24px; border-radius: 50px;
+            font-size: 1.5rem; font-weight: 800;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
         }
         
-        .mode-overlay .widget {
-            cursor: default; /* Nonaktifkan kursor drag di OBS */
-        }
-
-        /* Highlight widget saat dihover di dashboard */
-        body:not(.mode-overlay) .widget:hover {
-            outline: 2px dashed #3b82f6;
-            outline-offset: 4px;
-        }
-
-        /* --- Spesifik Widget --- */
-        #widget-subcount {
-            background: linear-gradient(135deg, #ef4444, #b91c1c);
-            padding: 10px 20px;
-            border-radius: 50px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.2rem;
-            font-weight: 700;
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
-        }
-
         #widget-marquee {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 15px;
-            border-radius: 8px;
-            width: 300px;
-            overflow: hidden;
-            white-space: nowrap;
-            border-left: 4px solid #3b82f6;
+            padding: 10px 20px; border-radius: 8px;
+            width: 400px; overflow: hidden; white-space: nowrap;
+            border-left: 5px solid var(--accent);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            font-weight: 600; font-size: 1.1rem;
         }
-
-        .marquee-content {
-            display: inline-block;
-            animation: marquee 10s linear infinite;
-        }
-
-        @keyframes marquee {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
-        }
+        .marquee-content { display: inline-block; animation: marquee 12s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
         #widget-clock {
-            font-size: 2rem;
-            font-weight: 800;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            letter-spacing: 2px;
+            font-size: 2.5rem; font-weight: 800;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.9);
+            letter-spacing: 2px; font-family: 'Inter', sans-serif;
         }
 
         #widget-social {
-            background: rgba(15, 23, 42, 0.8);
-            padding: 10px 20px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(4px);
+            padding: 12px 24px; border-radius: 16px;
+            display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+            font-weight: 700; font-size: 1.2rem;
         }
 
-        /* --- Alert Popup Styling --- */
+        /* --- ALERT POPUP --- */
         #alert-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 50;
-            text-align: center;
-            opacity: 0;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            pointer-events: none; z-index: 100;
+            text-align: center; opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-family: 'Poppins', sans-serif;
         }
-
         #alert-container.show {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.2);
-            animation: pulseAlert 2s infinite;
+            opacity: 1; transform: translate(-50%, -50%) scale(1);
+            animation: floatAlert 3s ease-in-out infinite;
         }
-
-        @keyframes pulseAlert {
-            0% { transform: translate(-50%, -50%) scale(1.1); }
-            50% { transform: translate(-50%, -50%) scale(1.2); }
-            100% { transform: translate(-50%, -50%) scale(1.1); }
+        @keyframes floatAlert {
+            0%, 100% { transform: translate(-50%, -50%) scale(1) translateY(0); }
+            50% { transform: translate(-50%, -50%) scale(1) translateY(-10px); }
         }
-
         .alert-box {
-            background: linear-gradient(to right, #8b5cf6, #3b82f6);
-            padding: 20px 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.5);
-            border: 2px solid rgba(255,255,255,0.2);
+            padding: 25px 50px; border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
         }
-        
-        .alert-img {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto -20px auto;
-            position: relative;
-            z-index: 2;
-            animation: bounce 1s infinite alternate;
-        }
+        .alert-img { width: 100px; height: 100px; margin: 0 auto -25px auto; position: relative; z-index: 2; animation: bounce 0.6s infinite alternate; }
+        @keyframes bounce { from { transform: translateY(0) scale(1); } to { transform: translateY(-15px) scale(1.1); } }
 
-        @keyframes bounce {
-            from { transform: translateY(0); }
-            to { transform: translateY(-15px); }
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-color); }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        /* Utilities */
+        .accordion-content { transition: max-height 0.3s ease-in-out, padding 0.3s ease; max-height: 0; overflow: hidden; padding: 0 1rem; }
+        .accordion-content.open { max-height: 500px; padding: 1rem; }
+        .accordion-icon { transition: transform 0.3s; }
+        .open .accordion-icon { transform: rotate(180deg); }
     </style>
 </head>
-<body class="antialiased">
+<body>
 
-    <div id="dashboard-ui" class="flex h-screen w-full">
+    <div id="dashboard-ui" class="flex h-screen w-full relative">
         
-        <!-- Sidebar Kontrol -->
-        <div class="w-96 bg-slate-800 border-r border-slate-700 flex flex-col h-full overflow-y-auto">
-            <div class="p-6 border-b border-slate-700">
-                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                    <i class="fa-solid fa-wand-magic-sparkles mr-2 text-blue-400"></i>Stream Overlay
-                </h1>
-                <p class="text-xs text-slate-400 mt-1">Real-time OBS Kustomisasi</p>
+        <!-- SIDEBAR / CONTROL PANEL -->
+        <aside class="w-96 min-w-[24rem] bg-[#18181b] border-r border-[#27272a] flex flex-col h-full z-20 shadow-2xl relative">
+            
+            <!-- Header -->
+            <div class="p-6 border-b border-[#27272a] bg-[#09090b] flex items-center justify-between sticky top-0 z-10">
+                <div>
+                    <h1 class="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500 tracking-tight">
+                        <i class="fa-solid fa-layer-group mr-2 text-indigo-400"></i>Studio Pro
+                    </h1>
+                    <p class="text-xs text-gray-400 mt-1 font-medium">Ultimate OBS Overlay Builder</p>
+                </div>
             </div>
 
-            <div class="p-6 flex-1 space-y-6">
-                <!-- OBS Link Section -->
-                <div class="bg-slate-900 p-4 rounded-xl border border-blue-500/30 relative">
-                    <h2 class="text-sm font-semibold text-blue-400 mb-2 uppercase tracking-wider">Tautan OBS Browser Source</h2>
-                    <p class="text-xs text-slate-400 mb-2">Copy link ini dan paste ke OBS (Width: 1920, Height: 1080).</p>
-                    <div class="flex gap-2">
-                        <input type="text" id="obs-link" readonly class="w-full bg-slate-800 text-xs text-slate-300 p-2 rounded border border-slate-700 focus:outline-none">
-                        <button onclick="copyOBSLink()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded transition" title="Copy">
-                            <i class="fa-regular fa-copy"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Toggle Widget -->
-                <div>
-                    <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider border-b border-slate-700 pb-2">Toggle Widget</h2>
-                    <div class="space-y-3">
-                        <label class="flex items-center justify-between cursor-pointer group">
-                            <span class="text-sm text-slate-300 group-hover:text-white transition"><i class="fa-brands fa-youtube w-6 text-red-500"></i> YouTube Subs</span>
-                            <input type="checkbox" id="toggle-subcount" class="toggle-checkbox sr-only" onchange="toggleWidget('subcount', this.checked)">
-                            <div class="w-10 h-5 bg-slate-600 rounded-full peer relative transition-colors duration-200 ease-in-out">
-                                <div class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform duration-200 ease-in-out"></div>
-                            </div>
-                        </label>
-                        <label class="flex items-center justify-between cursor-pointer group">
-                            <span class="text-sm text-slate-300 group-hover:text-white transition"><i class="fa-solid fa-align-left w-6 text-blue-400"></i> Teks Berjalan</span>
-                            <input type="checkbox" id="toggle-marquee" class="toggle-checkbox sr-only" onchange="toggleWidget('marquee', this.checked)">
-                            <div class="w-10 h-5 bg-slate-600 rounded-full peer relative transition-colors duration-200 ease-in-out">
-                                <div class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform duration-200 ease-in-out"></div>
-                            </div>
-                        </label>
-                        <label class="flex items-center justify-between cursor-pointer group">
-                            <span class="text-sm text-slate-300 group-hover:text-white transition"><i class="fa-regular fa-clock w-6 text-green-400"></i> Jam Digital</span>
-                            <input type="checkbox" id="toggle-clock" class="toggle-checkbox sr-only" onchange="toggleWidget('clock', this.checked)">
-                            <div class="w-10 h-5 bg-slate-600 rounded-full peer relative transition-colors duration-200 ease-in-out">
-                                <div class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform duration-200 ease-in-out"></div>
-                            </div>
-                        </label>
-                        <label class="flex items-center justify-between cursor-pointer group">
-                            <span class="text-sm text-slate-300 group-hover:text-white transition"><i class="fa-brands fa-twitter w-6 text-sky-400"></i> Info Sosial</span>
-                            <input type="checkbox" id="toggle-social" class="toggle-checkbox sr-only" onchange="toggleWidget('social', this.checked)">
-                            <div class="w-10 h-5 bg-slate-600 rounded-full peer relative transition-colors duration-200 ease-in-out">
-                                <div class="dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform duration-200 ease-in-out"></div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Pengaturan YouTube -->
-                <div>
-                    <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider border-b border-slate-700 pb-2">API YouTube</h2>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="text-xs text-slate-400 block mb-1">API Key</label>
-                            <input type="password" id="yt-api" placeholder="AIzaSy..." class="w-full bg-slate-900 text-sm p-2 rounded border border-slate-700 focus:border-blue-500 focus:outline-none transition" onchange="saveConfig()">
-                        </div>
-                        <div>
-                            <label class="text-xs text-slate-400 block mb-1">Channel ID</label>
-                            <input type="text" id="yt-id" placeholder="UC..." class="w-full bg-slate-900 text-sm p-2 rounded border border-slate-700 focus:border-blue-500 focus:outline-none transition" onchange="saveConfig()">
-                        </div>
-                        <button onclick="fetchYouTubeData()" class="w-full bg-slate-700 hover:bg-slate-600 text-sm py-2 rounded transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-rotate-right"></i> Paksa Update Data
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Pengaturan Teks -->
-                <div>
-                    <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider border-b border-slate-700 pb-2">Kustomisasi Teks</h2>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="text-xs text-slate-400 block mb-1">Teks Berjalan (Marquee)</label>
-                            <input type="text" id="text-marquee" value="Terima kasih sudah menonton! Jangan lupa subscribe dan like stream ini." class="w-full bg-slate-900 text-sm p-2 rounded border border-slate-700 focus:border-blue-500 focus:outline-none transition" onkeyup="updateTexts()">
-                        </div>
-                        <div>
-                            <label class="text-xs text-slate-400 block mb-1">Username Sosial Media</label>
-                            <input type="text" id="text-social" value="@StreamerKeren" class="w-full bg-slate-900 text-sm p-2 rounded border border-slate-700 focus:border-blue-500 focus:outline-none transition" onkeyup="updateTexts()">
+            <!-- Controls Scroll Area -->
+            <div class="flex-1 overflow-y-auto pb-20">
+                
+                <!-- System Connection -->
+                <div class="p-5 border-b border-[#27272a]">
+                    <div class="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-xl relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-indigo-500/20 blur-2xl rounded-full"></div>
+                        <h2 class="text-xs font-bold text-indigo-400 mb-2 uppercase tracking-wider flex items-center">
+                            <i class="fa-solid fa-link mr-2"></i> URL Browser Source OBS
+                        </h2>
+                        <p class="text-[11px] text-gray-400 mb-3">Copy link ini ke OBS (Size: 1920x1080). Perubahan tersinkron otomatis!</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="obs-link" readonly class="w-full bg-[#09090b] text-xs text-gray-300 p-2.5 rounded-lg border border-[#27272a] focus:outline-none">
+                            <button onclick="copyOBSLink()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center font-semibold" title="Copy URL">
+                                Copy
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Test Alert -->
-                <div>
-                    <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider border-b border-slate-700 pb-2">Sub Alert</h2>
-                    <button onclick="triggerAlert('TEST_USER')" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3 rounded-lg shadow-lg transform transition hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-bell"></i> Test Sub Alert
+                <!-- YouTube API Section -->
+                <div class="accordion border-b border-[#27272a]">
+                    <button class="w-full flex justify-between items-center p-5 hover:bg-[#27272a]/50 transition-colors" onclick="toggleAccordion('acc-yt')">
+                        <span class="font-semibold text-sm flex items-center"><i class="fa-brands fa-youtube text-red-500 w-6"></i> Integrasi YouTube</span>
+                        <i class="fa-solid fa-chevron-down text-gray-500 accordion-icon"></i>
                     </button>
-                </div>
-            </div>
-            
-            <div class="p-4 text-center text-xs text-slate-500 border-t border-slate-700">
-                Data disimpan otomatis di Local Storage.
-            </div>
-        </div>
-
-        <!-- Area Preview -->
-        <div class="flex-1 bg-slate-900 p-8 flex flex-col items-center justify-center">
-            <div class="w-full max-w-5xl mb-4 flex justify-between items-center">
-                <h2 class="text-xl font-bold text-slate-200">Layar Preview</h2>
-                <span class="text-sm bg-slate-800 px-3 py-1 rounded-full text-slate-400"><i class="fa-solid fa-arrows-up-down-left-right mr-1"></i> Drag widget untuk memindahkan</span>
-            </div>
-            
-            <div id="preview-container">
-                <!-- Widget: YT Subs -->
-                <div id="widget-subcount" class="widget" style="left: 5%; top: 5%;" data-id="subcount">
-                    <i class="fa-brands fa-youtube"></i>
-                    <span id="display-subcount">0</span>
-                </div>
-
-                <!-- Widget: Marquee -->
-                <div id="widget-marquee" class="widget" style="left: 5%; bottom: 5%;" data-id="marquee">
-                    <span class="marquee-content" id="display-marquee">Terima kasih sudah menonton! Jangan lupa subscribe.</span>
-                </div>
-
-                <!-- Widget: Jam -->
-                <div id="widget-clock" class="widget" style="right: 5%; top: 5%;" data-id="clock">
-                    12:00:00
-                </div>
-
-                <!-- Widget: Sosial -->
-                <div id="widget-social" class="widget" style="right: 5%; bottom: 5%;" data-id="social">
-                    <i class="fa-brands fa-instagram text-pink-500 text-xl"></i>
-                    <i class="fa-brands fa-twitter text-blue-400 text-xl"></i>
-                    <span id="display-social" class="font-bold">@StreamerKeren</span>
-                </div>
-
-                <!-- Alert Popup (Hidden by default, centered) -->
-                <div id="alert-container">
-                    <img src="https://api.iconify.design/fluent-emoji:partying-face.svg" class="alert-img" alt="Party">
-                    <div class="alert-box">
-                        <h3 class="text-xl font-bold text-yellow-300">NEW SUBSCRIBER!</h3>
-                        <p id="alert-name" class="text-2xl font-extrabold mt-1 text-white">USERNAME</p>
-                        <p class="text-sm mt-1 opacity-90">Selamat datang di keluarga!</p>
+                    <div id="acc-yt" class="accordion-content bg-[#09090b]/50">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs text-gray-400 block mb-1 font-medium">API Key YouTube</label>
+                                <input type="password" id="api-ytKey" placeholder="AIzaSy..." class="w-full bg-[#18181b] text-sm p-2 rounded border border-[#27272a] focus:border-indigo-500 focus:outline-none transition" onchange="updateConfig('api', 'ytKey', this.value)">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-400 block mb-1 font-medium">Channel ID</label>
+                                <input type="text" id="api-ytId" placeholder="UC..." class="w-full bg-[#18181b] text-sm p-2 rounded border border-[#27272a] focus:border-indigo-500 focus:outline-none transition" onchange="updateConfig('api', 'ytId', this.value)">
+                            </div>
+                            <button onclick="fetchYouTubeData()" class="w-full bg-[#27272a] hover:bg-[#3f3f46] text-xs py-2.5 rounded transition flex items-center justify-center gap-2 font-semibold">
+                                <i class="fa-solid fa-rotate-right"></i> Force Sync
+                            </button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Subcount Customization -->
+                <div class="accordion border-b border-[#27272a]">
+                    <button class="w-full flex justify-between items-center p-5 hover:bg-[#27272a]/50 transition-colors" onclick="toggleAccordion('acc-sub')">
+                        <span class="font-semibold text-sm flex items-center"><i class="fa-solid fa-users text-blue-400 w-6"></i> Live Subscriber Count</span>
+                        <div class="flex items-center gap-3">
+                            <label class="relative inline-flex items-center cursor-pointer" onclick="event.stopPropagation()">
+                                <input type="checkbox" id="toggle-subcount" class="sr-only peer" onchange="toggleWidget('subcount', this.checked)">
+                                <div class="w-9 h-5 bg-[#27272a] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                            </label>
+                            <i class="fa-solid fa-chevron-down text-gray-500 accordion-icon pointer-events-none"></i>
+                        </div>
+                    </button>
+                    <div id="acc-sub" class="accordion-content bg-[#09090b]/50 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Background Color</label>
+                            <input type="color" id="sub-bg" onchange="updateWidgetStyle('subcount', 'bgColor', this.value)">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Text Color</label>
+                            <input type="color" id="sub-text" onchange="updateWidgetStyle('subcount', 'textColor', this.value)">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400 flex justify-between mb-2"><span>Scale</span><span id="sub-scale-val">1x</span></label>
+                            <input type="range" id="sub-scale" min="0.5" max="2" step="0.1" value="1" oninput="updateWidgetStyle('subcount', 'scale', this.value); document.getElementById('sub-scale-val').innerText = this.value+'x';">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Marquee Customization -->
+                <div class="accordion border-b border-[#27272a]">
+                    <button class="w-full flex justify-between items-center p-5 hover:bg-[#27272a]/50 transition-colors" onclick="toggleAccordion('acc-marq')">
+                        <span class="font-semibold text-sm flex items-center"><i class="fa-solid fa-align-left text-green-400 w-6"></i> Teks Berjalan (Marquee)</span>
+                        <div class="flex items-center gap-3">
+                            <label class="relative inline-flex items-center cursor-pointer" onclick="event.stopPropagation()">
+                                <input type="checkbox" id="toggle-marquee" class="sr-only peer" onchange="toggleWidget('marquee', this.checked)">
+                                <div class="w-9 h-5 bg-[#27272a] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                            </label>
+                            <i class="fa-solid fa-chevron-down text-gray-500 accordion-icon pointer-events-none"></i>
+                        </div>
+                    </button>
+                    <div id="acc-marq" class="accordion-content bg-[#09090b]/50 space-y-4">
+                        <div>
+                            <label class="text-xs text-gray-400 block mb-1">Isi Pesan</label>
+                            <textarea id="marq-text" rows="2" class="w-full bg-[#18181b] text-xs p-2 rounded border border-[#27272a] focus:border-indigo-500 focus:outline-none" onkeyup="updateWidgetData('marquee', 'text', this.value)"></textarea>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Background Color</label>
+                            <input type="color" id="marq-bg" onchange="updateWidgetStyle('marquee', 'bgColor', this.value)">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Text & Border Color</label>
+                            <input type="color" id="marq-text-color" onchange="updateWidgetStyle('marquee', 'textColor', this.value)">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400 flex justify-between mb-2"><span>Kecepatan Animasi</span><span id="marq-speed-val">12s</span></label>
+                            <input type="range" id="marq-speed" min="5" max="30" step="1" value="12" dir="rtl" oninput="updateWidgetStyle('marquee', 'speed', this.value); document.getElementById('marq-speed-val').innerText = this.value+'s';">
+                            <p class="text-[10px] text-gray-500 mt-1">Geser kiri untuk lebih cepat</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clock Customization -->
+                <div class="accordion border-b border-[#27272a]">
+                    <button class="w-full flex justify-between items-center p-5 hover:bg-[#27272a]/50 transition-colors" onclick="toggleAccordion('acc-clock')">
+                        <span class="font-semibold text-sm flex items-center"><i class="fa-regular fa-clock text-yellow-400 w-6"></i> Jam Digital</span>
+                        <div class="flex items-center gap-3">
+                            <label class="relative inline-flex items-center cursor-pointer" onclick="event.stopPropagation()">
+                                <input type="checkbox" id="toggle-clock" class="sr-only peer" onchange="toggleWidget('clock', this.checked)">
+                                <div class="w-9 h-5 bg-[#27272a] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                            </label>
+                            <i class="fa-solid fa-chevron-down text-gray-500 accordion-icon pointer-events-none"></i>
+                        </div>
+                    </button>
+                    <div id="acc-clock" class="accordion-content bg-[#09090b]/50 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Text Color</label>
+                            <input type="color" id="clock-text" onchange="updateWidgetStyle('clock', 'textColor', this.value)">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400 flex justify-between mb-2"><span>Scale</span><span id="clock-scale-val">1x</span></label>
+                            <input type="range" id="clock-scale" min="0.5" max="3" step="0.1" value="1" oninput="updateWidgetStyle('clock', 'scale', this.value); document.getElementById('clock-scale-val').innerText = this.value+'x';">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Social Customization -->
+                <div class="accordion border-b border-[#27272a]">
+                    <button class="w-full flex justify-between items-center p-5 hover:bg-[#27272a]/50 transition-colors" onclick="toggleAccordion('acc-social')">
+                        <span class="font-semibold text-sm flex items-center"><i class="fa-solid fa-at text-pink-400 w-6"></i> Info Sosial Media</span>
+                        <div class="flex items-center gap-3">
+                            <label class="relative inline-flex items-center cursor-pointer" onclick="event.stopPropagation()">
+                                <input type="checkbox" id="toggle-social" class="sr-only peer" onchange="toggleWidget('social', this.checked)">
+                                <div class="w-9 h-5 bg-[#27272a] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                            </label>
+                            <i class="fa-solid fa-chevron-down text-gray-500 accordion-icon pointer-events-none"></i>
+                        </div>
+                    </button>
+                    <div id="acc-social" class="accordion-content bg-[#09090b]/50 space-y-4">
+                        <div>
+                            <label class="text-xs text-gray-400 block mb-1">Username (Handle)</label>
+                            <input type="text" id="soc-text" class="w-full bg-[#18181b] text-xs p-2 rounded border border-[#27272a] focus:border-indigo-500 focus:outline-none" onkeyup="updateWidgetData('social', 'text', this.value)">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Background Color</label>
+                            <input type="color" id="soc-bg" onchange="updateWidgetStyle('social', 'bgColor', this.value)">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Text Color</label>
+                            <input type="color" id="soc-text-color" onchange="updateWidgetStyle('social', 'textColor', this.value)">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400 flex justify-between mb-2"><span>Scale</span><span id="soc-scale-val">1x</span></label>
+                            <input type="range" id="soc-scale" min="0.5" max="2" step="0.1" value="1" oninput="updateWidgetStyle('social', 'scale', this.value); document.getElementById('soc-scale-val').innerText = this.value+'x';">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts Customization -->
+                <div class="accordion border-b border-[#27272a]">
+                    <button class="w-full flex justify-between items-center p-5 hover:bg-[#27272a]/50 transition-colors" onclick="toggleAccordion('acc-alert')">
+                        <span class="font-semibold text-sm flex items-center"><i class="fa-solid fa-bell text-orange-400 w-6"></i> Notifikasi / Alert</span>
+                        <i class="fa-solid fa-chevron-down text-gray-500 accordion-icon"></i>
+                    </button>
+                    <div id="acc-alert" class="accordion-content bg-[#09090b]/50 space-y-4">
+                        <div>
+                            <label class="text-xs text-gray-400 block mb-1">Pesan Alert (Gunakan {name} untuk user)</label>
+                            <input type="text" id="alert-msg" value="Selamat datang di stream, {name}!" class="w-full bg-[#18181b] text-xs p-2 rounded border border-[#27272a] focus:border-indigo-500 focus:outline-none" onchange="updateConfig('alert', 'message', this.value)">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Warna Background</label>
+                            <input type="color" id="alert-bg" onchange="updateConfig('alert', 'bgColor', this.value)">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-gray-400">Warna Nama User</label>
+                            <input type="color" id="alert-name-color" onchange="updateConfig('alert', 'nameColor', this.value)">
+                        </div>
+                        
+                        <div class="pt-2 border-t border-[#27272a]">
+                            <button onclick="triggerAlert('TEST_USER')" class="w-full relative overflow-hidden group bg-[#18181b] border border-indigo-500/50 hover:border-indigo-400 text-white font-bold py-3 rounded-lg shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
+                                <div class="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-purple-600/20 group-hover:opacity-100 opacity-50 transition-opacity"></div>
+                                <i class="fa-solid fa-play text-indigo-400 z-10"></i> <span class="z-10">Kirim Test Alert</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-        </div>
+            
+            <div class="p-3 text-center text-[10px] text-gray-500 border-t border-[#27272a] bg-[#09090b] absolute bottom-0 w-full">
+                Auto-saved to Local Storage. Live Sync Active.
+            </div>
+        </aside>
+
+        <!-- MAIN PREVIEW AREA -->
+        <main class="flex-1 bg-dots flex flex-col items-center relative h-full overflow-hidden">
+            
+            <!-- Top Bar Helper -->
+            <div class="w-full p-6 flex justify-between items-center absolute top-0 z-10 pointer-events-none">
+                <div class="bg-[#18181b]/80 backdrop-blur-md px-4 py-2 rounded-full border border-[#27272a] text-sm text-gray-300 shadow-xl pointer-events-auto flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    Preview Sinkronisasi Aktif
+                </div>
+                <div class="text-xs text-gray-400 bg-[#09090b]/80 px-3 py-1 rounded-md border border-[#27272a]">
+                    Resolusi Dasar: 1920x1080 (16:9)
+                </div>
+            </div>
+            
+            <!-- The Canvas Wrapper -->
+            <div id="preview-wrapper">
+                <div id="preview-container">
+                    
+                    <!-- Widget: Subcount -->
+                    <div id="widget-subcount" class="widget" data-id="subcount">
+                        <i class="fa-brands fa-youtube" id="sub-icon"></i>
+                        <span id="display-subcount">0</span>
+                    </div>
+
+                    <!-- Widget: Marquee -->
+                    <div id="widget-marquee" class="widget" data-id="marquee">
+                        <span class="marquee-content" id="display-marquee"></span>
+                    </div>
+
+                    <!-- Widget: Clock -->
+                    <div id="widget-clock" class="widget" data-id="clock">
+                        12:00:00
+                    </div>
+
+                    <!-- Widget: Social -->
+                    <div id="widget-social" class="widget" data-id="social">
+                        <div class="flex gap-2">
+                            <i class="fa-brands fa-instagram text-pink-500"></i>
+                            <i class="fa-brands fa-tiktok text-white"></i>
+                        </div>
+                        <span id="display-social"></span>
+                    </div>
+
+                    <!-- Alert Popup Canvas -->
+                    <div id="alert-container">
+                        <img src="https://api.iconify.design/fluent-emoji:partying-face.svg" class="alert-img" alt="Party">
+                        <div class="alert-box" id="alert-box-element">
+                            <h3 class="text-lg font-bold text-gray-200" id="alert-title">NEW SUBSCRIBER!</h3>
+                            <p id="alert-name" class="text-3xl font-black mt-1 uppercase tracking-wider text-white">USERNAME</p>
+                            <p class="text-sm mt-2 opacity-90 text-gray-300" id="alert-desc">Selamat datang di stream, USERNAME!</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
     </div>
 
     <!-- Container khusus jika mode overlay -->
     <div id="overlay-root"></div>
 
-    <style>
-        /* Styling untuk custom checkbox toggle */
-        input:checked + div { background-color: #3b82f6; }
-        input:checked + div .dot { transform: translateX(100%); }
-    </style>
-
     <script>
-        // 1. Inisialisasi State dan Komunikasi
-        const bc = new BroadcastChannel('obs_overlay_channel');
-        let appState = {
+        // --- 1. STATE MANAGEMENT ---
+        const bc = new BroadcastChannel('streamer_studio_pro');
+        
+        // Default State (Deep Object)
+        let defaultState = {
             widgets: {
-                subcount: { active: true, x: 5, y: 5 },
-                marquee: { active: true, x: 5, y: 85 },
-                clock: { active: true, x: 80, y: 5 },
-                social: { active: true, x: 80, y: 85 }
+                subcount: { 
+                    active: true, x: 5, y: 5, 
+                    style: { bgColor: '#ef4444', textColor: '#ffffff', scale: 1 }
+                },
+                marquee: { 
+                    active: true, x: 5, y: 85, text: 'Terima kasih sudah menonton! Jangan lupa subscribe dan like stream ini.',
+                    style: { bgColor: 'rgba(0,0,0,0.8)', textColor: '#ffffff', speed: 12 }
+                },
+                clock: { 
+                    active: true, x: 80, y: 5, 
+                    style: { textColor: '#ffffff', scale: 1 }
+                },
+                social: { 
+                    active: true, x: 80, y: 85, text: '@StreamerKeren',
+                    style: { bgColor: 'rgba(15,23,42,0.9)', textColor: '#ffffff', scale: 1 }
+                }
             },
-            api: {
-                ytKey: '',
-                ytId: ''
+            api: { ytKey: '', ytId: '' },
+            alert: {
+                message: 'Selamat datang di stream, {name}!',
+                bgColor: '#6366f1',
+                nameColor: '#fbbf24' // amber 400
             },
-            texts: {
-                marquee: 'Terima kasih sudah menonton! Jangan lupa subscribe dan like stream ini.',
-                social: '@StreamerKeren'
-            },
-            subData: 0
+            runtime: { subData: 0 } // Not saved to local storage directly, just memory sync
         };
+
+        let appState = JSON.parse(JSON.stringify(defaultState)); // Clone default
 
         const isOverlayMode = new URLSearchParams(window.location.search).get('mode') === 'overlay';
 
-        // 2. Setup Awal Saat Load
+        // --- 2. INITIALIZATION ---
         window.onload = () => {
             if (isOverlayMode) {
                 document.body.classList.add('mode-overlay');
-                // Pindahkan elemen preview ke body langsung agar penuh
                 const container = document.getElementById('preview-container');
                 document.body.appendChild(container);
             } else {
@@ -386,137 +530,263 @@
             }
 
             loadState();
-            applyStateToUI();
-            setupDraggables();
+            bindInputsToState(); // Set input values to match state
+            applyStateToUI();    // Apply styles to canvas
+            
+            if (!isOverlayMode) setupDraggables();
             startClock();
             
-            // Polling YouTube Data setiap 60 detik jika ada API Key
-            fetchYouTubeData();
+            // Auto fetch if API exists
+            if(appState.api.ytKey && appState.api.ytId) fetchYouTubeData();
             setInterval(fetchYouTubeData, 60000); 
 
-            // Listener untuk komunikasi antar tab (Dashboard <-> OBS)
+            // Real-time listener
             bc.onmessage = (event) => {
                 const data = event.data;
                 if (data.type === 'STATE_UPDATE') {
                     appState = data.state;
                     applyStateToUI();
+                    if(!isOverlayMode) bindInputsToState(); // Update dashboard inputs if opened in multiple tabs
                 } else if (data.type === 'TRIGGER_ALERT') {
                     playAlertAnimation(data.name);
                 }
             };
         };
 
+        // --- 3. CORE FUNCTIONS ---
         function saveState() {
-            localStorage.setItem('streamer_overlay_state', JSON.stringify(appState));
-            // Broadcast ke OBS overlay jika di dashboard
-            if (!isOverlayMode) {
-                bc.postMessage({ type: 'STATE_UPDATE', state: appState });
-            }
+            // Save state but ignore runtime variables
+            const stateToSave = { ...appState };
+            delete stateToSave.runtime; 
+            localStorage.setItem('ssp_state', JSON.stringify(stateToSave));
+            
+            // Broadcast full state (including runtime) to OBS
+            bc.postMessage({ type: 'STATE_UPDATE', state: appState });
         }
 
         function loadState() {
-            const saved = localStorage.getItem('streamer_overlay_state');
+            const saved = localStorage.getItem('ssp_state');
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
-                    // Merge state agar properti baru tidak error
-                    appState = { ...appState, ...parsed, widgets: { ...appState.widgets, ...parsed.widgets }, api: { ...appState.api, ...parsed.api }, texts: { ...appState.texts, ...parsed.texts } };
+                    // Deep merge to ensure new properties in future updates don't break
+                    appState = deepMerge(defaultState, parsed);
                 } catch(e) { console.error("Error loading state", e); }
             }
         }
 
+        // Helper for Deep Merge
+        function deepMerge(target, source) {
+            const isObject = (obj) => obj && typeof obj === 'object';
+            if (!isObject(target) || !isObject(source)) return source;
+            Object.keys(source).forEach(key => {
+                const targetValue = target[key];
+                const sourceValue = source[key];
+                if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
+                    target[key] = targetValue.concat(sourceValue);
+                } else if (isObject(targetValue) && isObject(sourceValue)) {
+                    target[key] = deepMerge(Object.assign({}, targetValue), sourceValue);
+                } else {
+                    target[key] = sourceValue;
+                }
+            });
+            return target;
+        }
+
         function applyStateToUI() {
-            // Terapkan posisi dan visibilitas Widget
-            for (const [id, config] of Object.entries(appState.widgets)) {
-                const el = document.getElementById(`widget-${id}`);
-                const toggle = document.getElementById(`toggle-${id}`);
-                
-                if (el) {
-                    el.style.left = `${config.x}%`;
-                    el.style.top = `${config.y}%`;
-                    el.style.display = config.active ? 'flex' : 'none';
-                    if (id === 'clock') el.style.display = config.active ? 'block' : 'none'; // Clock is block
-                }
-                if (toggle && !isOverlayMode) {
-                    toggle.checked = config.active;
-                }
+            // Apply Subcount
+            const sub = appState.widgets.subcount;
+            const subEl = document.getElementById('widget-subcount');
+            if(subEl) {
+                applyPositionAndVisibility(subEl, sub);
+                subEl.style.backgroundColor = sub.style.bgColor;
+                subEl.style.color = sub.style.textColor;
+                subEl.style.transform = `scale(${sub.style.scale})`;
+                document.getElementById('display-subcount').innerText = formatNumber(appState.runtime.subData);
             }
 
-            // Terapkan teks
-            document.getElementById('display-marquee').innerText = appState.texts.marquee;
-            document.getElementById('display-social').innerText = appState.texts.social;
-            document.getElementById('display-subcount').innerText = formatNumber(appState.subData);
+            // Apply Marquee
+            const marq = appState.widgets.marquee;
+            const marqEl = document.getElementById('widget-marquee');
+            if(marqEl) {
+                applyPositionAndVisibility(marqEl, marq);
+                marqEl.style.backgroundColor = marq.style.bgColor;
+                marqEl.style.color = marq.style.textColor;
+                marqEl.style.borderColor = marq.style.textColor; // left border
+                document.getElementById('display-marquee').innerText = marq.text;
+                document.getElementById('display-marquee').style.animationDuration = `${marq.style.speed}s`;
+            }
 
-            // Terapkan input di dashboard
-            if (!isOverlayMode) {
-                document.getElementById('text-marquee').value = appState.texts.marquee;
-                document.getElementById('text-social').value = appState.texts.social;
-                document.getElementById('yt-api').value = appState.api.ytKey;
-                document.getElementById('yt-id').value = appState.api.ytId;
+            // Apply Clock
+            const clk = appState.widgets.clock;
+            const clkEl = document.getElementById('widget-clock');
+            if(clkEl) {
+                applyPositionAndVisibility(clkEl, clk);
+                clkEl.style.color = clk.style.textColor;
+                clkEl.style.transform = `scale(${clk.style.scale})`;
+            }
+
+            // Apply Social
+            const soc = appState.widgets.social;
+            const socEl = document.getElementById('widget-social');
+            if(socEl) {
+                applyPositionAndVisibility(socEl, soc);
+                socEl.style.backgroundColor = soc.style.bgColor;
+                socEl.style.color = soc.style.textColor;
+                socEl.style.transform = `scale(${soc.style.scale})`;
+                document.getElementById('display-social').innerText = soc.text;
+            }
+        }
+
+        function applyPositionAndVisibility(el, widgetState) {
+            el.style.left = `${widgetState.x}%`;
+            el.style.top = `${widgetState.y}%`;
+            el.style.display = widgetState.active ? (el.id === 'widget-clock' ? 'block' : 'flex') : 'none';
+            // override for marquee
+            if(el.id === 'widget-marquee' && widgetState.active) el.style.display = 'block';
+        }
+
+        function bindInputsToState() {
+            if (isOverlayMode) return;
+            
+            // Toggles
+            document.getElementById('toggle-subcount').checked = appState.widgets.subcount.active;
+            document.getElementById('toggle-marquee').checked = appState.widgets.marquee.active;
+            document.getElementById('toggle-clock').checked = appState.widgets.clock.active;
+            document.getElementById('toggle-social').checked = appState.widgets.social.active;
+
+            // APIs
+            document.getElementById('api-ytKey').value = appState.api.ytKey;
+            document.getElementById('api-ytId').value = appState.api.ytId;
+
+            // Texts
+            document.getElementById('marq-text').value = appState.widgets.marquee.text;
+            document.getElementById('soc-text').value = appState.widgets.social.text;
+
+            // Colors & Scales
+            // Sub
+            setInputValue('sub-bg', hexToColorInput(appState.widgets.subcount.style.bgColor));
+            setInputValue('sub-text', hexToColorInput(appState.widgets.subcount.style.textColor));
+            setInputValue('sub-scale', appState.widgets.subcount.style.scale);
+            document.getElementById('sub-scale-val').innerText = appState.widgets.subcount.style.scale + 'x';
+            
+            // Marquee
+            setInputValue('marq-bg', hexToColorInput(appState.widgets.marquee.style.bgColor));
+            setInputValue('marq-text-color', hexToColorInput(appState.widgets.marquee.style.textColor));
+            setInputValue('marq-speed', appState.widgets.marquee.style.speed);
+            document.getElementById('marq-speed-val').innerText = appState.widgets.marquee.style.speed + 's';
+
+            // Clock
+            setInputValue('clock-text', hexToColorInput(appState.widgets.clock.style.textColor));
+            setInputValue('clock-scale', appState.widgets.clock.style.scale);
+            document.getElementById('clock-scale-val').innerText = appState.widgets.clock.style.scale + 'x';
+
+            // Social
+            setInputValue('soc-bg', hexToColorInput(appState.widgets.social.style.bgColor));
+            setInputValue('soc-text-color', hexToColorInput(appState.widgets.social.style.textColor));
+            setInputValue('soc-scale', appState.widgets.social.style.scale);
+            document.getElementById('soc-scale-val').innerText = appState.widgets.social.style.scale + 'x';
+
+            // Alerts
+            setInputValue('alert-msg', appState.alert.message);
+            setInputValue('alert-bg', hexToColorInput(appState.alert.bgColor));
+            setInputValue('alert-name-color', hexToColorInput(appState.alert.nameColor));
+        }
+
+        // Helpers for UI binding
+        function setInputValue(id, val) { const el = document.getElementById(id); if(el) el.value = val; }
+        // Simple hex converter for rgba inputs if needed, html input type=color only accepts hex
+        function hexToColorInput(color) {
+            if(color.startsWith('rgba')) {
+                // Approximate it or return default black if complex. 
+                // In a perfect world we'd parse RGBA to Hex. For simplicity in this demo, 
+                // if it's rgba we won't perfectly map it back to the picker, 
+                // but user can set a new hex.
+                return '#000000'; 
+            }
+            return color.substring(0,7); // ensure 6 char hex
+        }
+
+        // --- 4. DASHBOARD ACTIONS ---
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            const parent = content.parentElement;
+            
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                parent.classList.remove('open');
+            } else {
+                // Close others (optional, but good for cleanliness)
+                document.querySelectorAll('.accordion-content').forEach(el => {
+                    el.classList.remove('open');
+                    el.parentElement.classList.remove('open');
+                });
+                content.classList.add('open');
+                parent.classList.add('open');
             }
         }
 
         function toggleWidget(id, isActive) {
             appState.widgets[id].active = isActive;
-            applyStateToUI();
-            saveState();
+            applyStateToUI(); saveState();
         }
 
-        function saveConfig() {
-            appState.api.ytKey = document.getElementById('yt-api').value;
-            appState.api.ytId = document.getElementById('yt-id').value;
-            saveState();
-            fetchYouTubeData(); // Fetch ulang setelah disave
+        function updateWidgetData(id, key, value) {
+            appState.widgets[id][key] = value;
+            applyStateToUI(); saveState();
         }
 
-        function updateTexts() {
-            appState.texts.marquee = document.getElementById('text-marquee').value;
-            appState.texts.social = document.getElementById('text-social').value;
-            applyStateToUI();
+        function updateWidgetStyle(id, key, value) {
+            // For colors, convert hex to rgba if transparency is needed (e.g., marquee bg)
+            if(key === 'bgColor' && id !== 'subcount') {
+                // Add slight transparency to black/dark backgrounds
+                // For simplicity, we just save the hex or rgba.
+                appState.widgets[id].style[key] = value;
+            } else {
+                appState.widgets[id].style[key] = value;
+            }
+            applyStateToUI(); saveState();
+        }
+
+        function updateConfig(category, key, value) {
+            appState[category][key] = value;
             saveState();
         }
 
         function generateOBSLink() {
             const baseUrl = window.location.href.split('?')[0];
-            const obsUrl = `${baseUrl}?mode=overlay`;
-            document.getElementById('obs-link').value = obsUrl;
+            document.getElementById('obs-link').value = `${baseUrl}?mode=overlay`;
         }
 
         function copyOBSLink() {
             const linkInput = document.getElementById('obs-link');
             linkInput.select();
-            linkInput.setSelectionRange(0, 99999);
-            try {
-                document.execCommand('copy');
-                showToast("Tautan OBS berhasil disalin!");
-            } catch (err) {
-                console.error("Gagal menyalin", err);
-            }
+            document.execCommand('copy');
+            showToast("Copied to clipboard!");
         }
 
         function setupDraggables() {
-            if (isOverlayMode) return; // Jangan izinkan drag di OBS
-
             const container = document.getElementById('preview-container');
             const widgets = document.querySelectorAll('.widget');
 
             widgets.forEach(widget => {
                 let isDragging = false;
-                let startX, startY, initialX, initialY;
+                let startX, startY, initialLeft, initialTop;
 
                 widget.addEventListener('mousedown', (e) => {
+                    // Don't drag if clicking on an input/interactive inside widget (though we don't have them here)
                     isDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
                     
-                    // Hitung posisi awal dalam persen
+                    // Get current positions in pixels relative to container
                     const rect = widget.getBoundingClientRect();
                     const containerRect = container.getBoundingClientRect();
                     
-                    initialX = ((rect.left - containerRect.left) / containerRect.width) * 100;
-                    initialY = ((rect.top - containerRect.top) / containerRect.height) * 100;
-                    
-                    widget.style.zIndex = 10; // Bawa ke atas saat didrag
+                    startX = e.clientX;
+                    startY = e.clientY;
+
+                    // Parse current % values
+                    initialLeft = parseFloat(widget.style.left) || 0;
+                    initialTop = parseFloat(widget.style.top) || 0;
                 });
 
                 document.addEventListener('mousemove', (e) => {
@@ -524,30 +794,27 @@
 
                     const containerRect = container.getBoundingClientRect();
                     
-                    // Hitung pergeseran dalam pixel, lalu konversi ke persentase dari container
                     const dx = e.clientX - startX;
                     const dy = e.clientY - startY;
 
+                    // Convert pixel movement to % movement
                     const dxPercent = (dx / containerRect.width) * 100;
                     const dyPercent = (dy / containerRect.height) * 100;
 
-                    let newX = initialX + dxPercent;
-                    let newY = initialY + dyPercent;
+                    let newLeft = initialLeft + dxPercent;
+                    let newTop = initialTop + dyPercent;
 
-                    // Batasi agar tidak keluar area (clamp 0 - 100%)
-                    newX = Math.max(0, Math.min(newX, 90)); // max 90% agar tidak terpotong tepi
-                    newY = Math.max(0, Math.min(newY, 90));
+                    // Clamp
+                    newLeft = Math.max(0, Math.min(newLeft, 95));
+                    newTop = Math.max(0, Math.min(newTop, 95));
 
-                    widget.style.left = `${newX}%`;
-                    widget.style.top = `${newY}%`;
+                    widget.style.left = `${newLeft}%`;
+                    widget.style.top = `${newTop}%`;
                 });
 
                 document.addEventListener('mouseup', () => {
                     if (isDragging) {
                         isDragging = false;
-                        widget.style.zIndex = '';
-                        
-                        // Simpan posisi baru ke state
                         const id = widget.getAttribute('data-id');
                         appState.widgets[id].x = parseFloat(widget.style.left);
                         appState.widgets[id].y = parseFloat(widget.style.top);
@@ -557,33 +824,36 @@
             });
         }
 
+        // --- 5. DATA FETCHING & LOGIC ---
         async function fetchYouTubeData() {
-            if (!appState.api.ytKey || !appState.api.ytId) return;
+            const key = appState.api.ytKey;
+            const id = appState.api.ytId;
+            if (!key || !id) return;
 
             try {
-                const url = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${appState.api.ytId}&key=${appState.api.ytKey}`;
+                const url = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${id}&key=${key}`;
                 const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data.items && data.items.length > 0) {
                     const subs = data.items[0].statistics.subscriberCount;
                     
-                    // Cek jika ada kenaikan subscriber (trigger alert otomatis)
-                    if (appState.subData !== 0 && parseInt(subs) > parseInt(appState.subData)) {
-                         triggerAlert("Seseorang"); // YouTube API v3 standar tidak memberikan nama subscriber real-time tanpa Oauth, jadi kita gunakan teks default atau bisa dikembangkan lagi.
+                    // Trigger alert if subs increased
+                    if (appState.runtime.subData !== 0 && parseInt(subs) > parseInt(appState.runtime.subData)) {
+                         triggerAlert("Seseorang"); // Mock name
                     }
 
-                    appState.subData = subs;
+                    appState.runtime.subData = subs;
                     document.getElementById('display-subcount').innerText = formatNumber(subs);
-                    saveState();
                     
-                    if (!isOverlayMode) showToast("Data YouTube diupdate!", "success");
-                } else {
-                    if (!isOverlayMode) showToast("Channel ID tidak ditemukan.", "error");
+                    // Broadcast runtime update
+                    bc.postMessage({ type: 'STATE_UPDATE', state: appState });
+                    if (!isOverlayMode && document.getElementById('acc-yt').classList.contains('open')) {
+                        showToast("YouTube Data Synced!", "success");
+                    }
                 }
             } catch (error) {
-                console.error("Error fetching YT", error);
-                if (!isOverlayMode) showToast("Gagal memuat API YouTube. Cek API Key.", "error");
+                console.error("YT Fetch Error", error);
             }
         }
 
@@ -591,47 +861,64 @@
             const clockEl = document.getElementById('widget-clock');
             setInterval(() => {
                 const now = new Date();
-                clockEl.innerText = now.toLocaleTimeString('id-ID', { hour12: false });
+                // Add padding to ensure strict format HH:MM:SS
+                clockEl.innerText = now.toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
             }, 1000);
         }
 
         function triggerAlert(name) {
-            // Mainkan alert di layar ini
             playAlertAnimation(name);
-            
-            // Broadcast ke OBS
-            if (!isOverlayMode) {
-                bc.postMessage({ type: 'TRIGGER_ALERT', name: name });
-            }
+            if (!isOverlayMode) bc.postMessage({ type: 'TRIGGER_ALERT', name: name });
         }
 
         function playAlertAnimation(name) {
             const alertContainer = document.getElementById('alert-container');
+            const alertBox = document.getElementById('alert-box-element');
             const nameEl = document.getElementById('alert-name');
+            const descEl = document.getElementById('alert-desc');
+            
+            // Apply Custom Styles
+            alertBox.style.background = `linear-gradient(135deg, ${appState.alert.bgColor}, #0f172a)`;
+            nameEl.style.color = appState.alert.nameColor;
+            
+            // Parse custom message
+            const rawMsg = appState.alert.message;
+            const parsedMsg = rawMsg.replace('{name}', name);
             
             nameEl.innerText = name;
+            descEl.innerText = parsedMsg;
+
+            // Remove and add class to trigger animation restart
+            alertContainer.classList.remove('show');
+            void alertContainer.offsetWidth; // trigger reflow
             alertContainer.classList.add('show');
 
-            // Tambahkan SFX sederhana dengan AudioContext (Opsional/Bonus)
+            // Play SFX (Ignored by browsers without interaction, but works in OBS usually)
+            playAlertSound();
+
+            setTimeout(() => { alertContainer.classList.remove('show'); }, 5000);
+        }
+
+        function playAlertSound() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
-                oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.1); // C6
-                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.start();
-                oscillator.stop(audioCtx.currentTime + 0.5);
-            } catch(e) {} // Abaikan jika browser memblokir audio autoplay
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                // Classic arpeggio up
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+                osc.frequency.setValueAtTime(554.37, audioCtx.currentTime + 0.1); // C#5
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.2); // E5
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.3); // A5
 
-            // Hilangkan setelah 4 detik
-            setTimeout(() => {
-                alertContainer.classList.remove('show');
-            }, 4000);
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+                
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.7);
+            } catch(e) {}
         }
 
         function formatNumber(num) {
@@ -640,21 +927,15 @@
             return num;
         }
 
-        // Custom Toast Notification untuk menggantikan Alert()
-        function showToast(message, type="info") {
+        function showToast(msg, type="info") {
             const toast = document.createElement('div');
-            toast.className = `fixed bottom-4 right-4 text-white px-4 py-2 rounded shadow-lg z-50 transform transition-all translate-y-10 opacity-0 ${type === 'error' ? 'bg-red-500' : 'bg-slate-700'}`;
-            toast.innerText = message;
+            toast.className = `fixed bottom-6 right-6 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-2xl z-50 transform transition-all duration-300 translate-y-12 opacity-0 flex items-center gap-2 border ${type === 'error' ? 'bg-red-900/90 border-red-500/50' : 'bg-indigo-900/90 border-indigo-500/50'}`;
+            toast.innerHTML = `<i class="fa-solid ${type==='error'?'fa-triangle-exclamation text-red-400':'fa-circle-check text-indigo-400'}"></i> ${msg}`;
             document.body.appendChild(toast);
             
-            // Animasi masuk
+            setTimeout(() => { toast.classList.remove('translate-y-12', 'opacity-0'); }, 10);
             setTimeout(() => {
-                toast.classList.remove('translate-y-10', 'opacity-0');
-            }, 10);
-
-            // Animasi keluar
-            setTimeout(() => {
-                toast.classList.add('translate-y-10', 'opacity-0');
+                toast.classList.add('translate-y-12', 'opacity-0');
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
