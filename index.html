@@ -3,431 +3,472 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SANOBS - Stream Overlay</title>
+    <title>OBS Overlay Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+    
     <style>
-        :root {
-            --primary: #FF4136; /* Merah YouTube/Gaming */
-            --secondary: #111111;
-        }
-
         body {
             font-family: 'Poppins', sans-serif;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Penting untuk OBS agar tidak ada scrollbar */
-            background-color: transparent; /* Agar transparan di OBS */
+            transition: background-color 0.5s ease;
         }
 
-        /* Mode untuk Control Panel (bukan di dalam OBS) */
-        body.control-mode {
-            background-color: #2a2a2a;
-            overflow: auto;
-        }
-
-        /* --- LOWER THIRD --- */
-        #lower-third {
-            position: absolute;
-            bottom: 50px;
-            left: 50px;
+        /* Mode Dashboard (Background Keren) */
+        body.dashboard-mode {
+            background-color: #0f172a;
+            background-image: radial-gradient(circle at 50% -20%, #3b82f6 0%, #0f172a 50%);
+            color: white;
+            min-height: 100vh;
             display: flex;
             align-items: center;
-            opacity: 0;
-            transform: translateX(-50px);
-            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            z-index: 10;
+            justify-content: center;
         }
 
-        #lower-third.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .lt-box-main {
-            background-color: var(--secondary);
+        /* Mode Overlay (Penting: Transparan untuk OBS) */
+        body.overlay-mode {
+            background-color: transparent !important;
             color: white;
-            padding: 10px 25px;
-            border-radius: 8px 0 0 8px;
-            border-left: 6px solid var(--primary);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            position: relative;
             overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            text-shadow: 0px 2px 4px rgba(0,0,0,0.8), 0px 0px 10px rgba(0,0,0,0.5);
         }
 
-        .lt-box-main h1 {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 2.5rem;
-            margin: 0;
-            letter-spacing: 2px;
-            line-height: 1;
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.8);
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
-        .lt-box-sub {
-            background-color: white;
-            color: var(--secondary);
-            padding: 10px 20px;
-            border-radius: 0 8px 8px 0;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            font-weight: 600;
+        /* Animasi Rotator */
+        .fade-enter { opacity: 0; transform: translateY(10px); }
+        .fade-exit-active { opacity: 0; transform: translateY(-10px); transition: all 0.5s ease; }
+
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 10px #8b5cf6, 0 0 20px #8b5cf6; }
+            50% { box-shadow: 0 0 20px #d946ef, 0 0 40px #d946ef; }
+            100% { box-shadow: 0 0 10px #8b5cf6, 0 0 20px #8b5cf6; }
         }
 
-        /* --- ALERT BOX --- */
-        #alert-box {
-            position: absolute;
-            top: 50px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-50px) scale(0.8);
-            background: linear-gradient(135deg, var(--primary), #FF851B);
-            color: white;
-            padding: 15px 40px;
-            border-radius: 50px;
-            font-size: 1.5rem;
-            font-weight: 800;
-            box-shadow: 0 10px 30px rgba(255, 65, 54, 0.6);
-            opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 20;
+        /* Notifikasi Toast Custom */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #10b981;
+            color: #fff;
             text-align: center;
-            border: 3px solid rgba(255,255,255,0.3);
-        }
-
-        #alert-box.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0) scale(1);
-        }
-
-        .alert-amount {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 2rem;
-            display: block;
-            margin-top: 5px;
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.5);
-        }
-
-        /* --- CHAT BOX --- */
-        #chat-box {
-            position: absolute;
-            top: 50px;
-            right: 20px;
-            width: 350px;
-            height: 60vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            z-index: 5;
-        }
-
-        .chat-message {
-            background-color: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 10px 15px;
-            margin-bottom: 8px;
             border-radius: 8px;
-            font-size: 0.95rem;
-            animation: slideInRight 0.3s forwards;
-            border-left: 4px solid var(--primary);
-            text-shadow: 1px 1px 2px black;
-        }
-
-        .chat-author {
-            font-weight: 800;
-            color: #FFDC00; /* Kuning untuk nama */
-            margin-right: 8px;
-        }
-
-        @keyframes slideInRight {
-            from { opacity: 0; transform: translateX(50px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        .chat-fade-out {
-            animation: fadeOut 1s forwards;
-        }
-
-        @keyframes fadeOut {
-            to { opacity: 0; visibility: hidden; }
-        }
-
-        /* --- CONTROL PANEL (Tersembunyi di OBS) --- */
-        #control-panel {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            width: 90%;
-            max-w-md;
+            padding: 12px;
+            position: fixed;
             z-index: 100;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.5s, bottom 0.5s;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+            font-weight: bold;
         }
-
-        body.control-mode #control-panel {
-            display: block;
-        }
-
-        /* Menyembunyikan overlay saat di control mode agar tidak tumpang tindih */
-        body.control-mode #lower-third,
-        body.control-mode #alert-box,
-        body.control-mode #chat-box {
-            display: none !important;
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
         }
     </style>
 </head>
-<body>
+<body class="dashboard-mode">
 
-    <!-- OVERLAY ELEMENTS (Akan terlihat di OBS) -->
-    
-    <!-- 1. Lower Third -->
-    <div id="lower-third">
-        <div class="lt-box-main">
-            <h1 id="lt-name">SANOBS GAMING</h1>
+    <!-- TAMPILAN DASHBOARD (WEB) -->
+    <div id="dashboardView" class="w-full max-w-2xl p-4">
+        <div class="glass-panel p-8">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
+                    <i class="fas fa-layer-group mr-2 text-blue-400"></i>OBS Overlay Generator
+                </h1>
+                <p class="text-gray-400 text-sm">Sesuaikan teks overlay kamu, generate link-nya, lalu paste di OBS Browser Source.</p>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Sosial Media -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-300 mb-1"><i class="fab fa-youtube text-red-500 w-5"></i> Nama YouTube</label>
+                        <input type="text" id="inYoutube" placeholder="/ChannelKamu" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-300 mb-1"><i class="fab fa-instagram text-pink-500 w-5"></i> Username Instagram</label>
+                        <input type="text" id="inInstagram" placeholder="@InstagramKamu" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                    </div>
+                </div>
+
+                <!-- Pengaturan Goal / Live Sub -->
+                <div class="border-t border-gray-700 pt-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-purple-300"><i class="fas fa-bullseye mr-2"></i> Pengaturan Goal & Subs</h3>
+                        <select id="inGoalMode" onchange="toggleGoalMode()" class="bg-gray-800 border border-gray-600 rounded-lg px-3 py-1 text-sm text-white focus:outline-none focus:border-purple-500 outline-none cursor-pointer">
+                            <option value="manual">Bar Target (Manual)</option>
+                            <option value="live">Live Sub Count (YouTube)</option>
+                        </select>
+                    </div>
+
+                    <!-- Mode Manual -->
+                    <div id="modeManual" class="grid grid-cols-1 md:grid-cols-3 gap-4 transition-all">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-bold text-gray-300 mb-1">Judul Goal</label>
+                            <input type="text" id="inGoalTitle" value="Sub Goal" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-300 mb-1">Angka Saat Ini</label>
+                            <input type="number" id="inGoalCurrent" value="42" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-300 mb-1">Target (Max)</label>
+                            <input type="number" id="inGoalMax" value="100" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                        </div>
+                    </div>
+
+                    <!-- Mode Live Subs -->
+                    <div id="modeLive" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 transition-all">
+                        <div class="md:col-span-2 bg-yellow-900/30 border border-yellow-700 p-3 rounded-lg">
+                            <p class="text-xs text-yellow-400"><i class="fas fa-exclamation-triangle mr-1"></i> Biarkan kosong untuk <b>Demo Mode</b> (Animasi angka naik otomatis). Untuk data asli secara Real-Time, isi API Key.</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-300 mb-1">YouTube Channel ID</label>
+                            <input type="text" id="inChannelId" placeholder="Misal: UCX6OQ3DkcsbYNE6H8uQQuVA" class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-300 mb-1">YouTube API Key</label>
+                            <input type="password" id="inApiKey" placeholder="AIzaSy..." class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition-colors">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Action -->
+                <div class="border-t border-gray-700 pt-6">
+                    <button onclick="generateOBSLink()" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform transition hover:-translate-y-1">
+                        <i class="fas fa-magic mr-2"></i> Generate & Preview Overlay
+                    </button>
+                </div>
+
+                <!-- Preview Box (BARU) -->
+                <div id="previewBox" class="hidden mt-6 animate-fade-in">
+                    <h3 class="text-sm font-bold text-gray-300 mb-2"><i class="fas fa-desktop mr-2 text-blue-400"></i>Live Preview Overlay</h3>
+                    <div class="w-full aspect-video bg-[url('https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1920&auto=format&fit=crop')] bg-cover bg-center rounded-lg border border-gray-600 overflow-hidden relative shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+                        <div class="absolute inset-0 bg-black/30"></div> <!-- Efek gelap simulasi game -->
+                        <!-- iFrame Preview -->
+                        <iframe id="previewFrame" class="absolute inset-0 w-full h-full border-0 pointer-events-none" src=""></iframe>
+                    </div>
+                    <p class="text-[10px] text-gray-500 text-center mt-2">Ini adalah gambaran kasarnya jika dipasang di atas Gameplay.</p>
+                </div>
+
+                <!-- Hasil Link -->
+                <div id="resultBox" class="hidden mt-4 bg-gray-900 rounded-lg p-4 border border-green-500 relative">
+                    <label class="block text-xs font-bold text-green-400 mb-2 uppercase tracking-wider">Copy URL ini ke Browser Source OBS:</label>
+                    <div class="flex">
+                        <input type="text" id="generatedUrl" readonly class="flex-1 bg-gray-800 text-gray-300 px-3 py-2 rounded-l-md border-y border-l border-gray-700 outline-none text-sm font-mono selection:bg-purple-500 selection:text-white">
+                        <button onclick="copyToClipboard()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-r-md transition-colors font-bold">
+                            Copy
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2"><i class="fas fa-info-circle"></i> Set Width: 1920, Height: 1080 di properti OBS.</p>
+                </div>
+            </div>
         </div>
-        <div class="lt-box-sub">
-            <span id="lt-social">@sanobs.id</span>
-        </div>
     </div>
 
-    <!-- 2. Alert Box -->
-    <div id="alert-box">
-        <div id="alert-text">NURUL BARU SAJA SUBSCRIBE!</div>
-        <div id="alert-detail" class="alert-amount"></div>
-    </div>
-
-    <!-- 3. Chat Box (Dummy/Simulasi) -->
-    <div id="chat-box">
-        <!-- Pesan akan ditambahkan ke sini oleh JS -->
-    </div>
-
-
-    <!-- CONTROL PANEL (Hanya terlihat jika dibuka di browser biasa) -->
-    <div id="control-panel" class="max-w-md w-full">
-        <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">SANOBS Control Panel</h2>
-        <p class="text-sm text-gray-500 mb-6 text-center">Buka URL ini di OBS sebagai Browser Source untuk overlay. Gunakan tab ini untuk mengontrol.</p>
+    <!-- TAMPILAN OVERLAY (OBS) -->
+    <div id="overlayView" class="hidden w-full h-full relative pointer-events-none">
         
-        <!-- Lower Third Controls -->
-        <div class="bg-gray-100 p-4 rounded-lg mb-4">
-            <h3 class="font-semibold mb-2">Lower Third</h3>
-            <input type="text" id="ctrl-name" placeholder="Nama Streamer" class="w-full p-2 mb-2 border rounded" value="SANOBS GAMING">
-            <input type="text" id="ctrl-social" placeholder="Info/Sosmed" class="w-full p-2 mb-2 border rounded" value="youtube.com/sanobs">
-            <div class="flex gap-2">
-                <button onclick="updateLowerThird()" class="bg-blue-500 text-white px-4 py-2 rounded flex-1 hover:bg-blue-600 transition">Update</button>
-                <button onclick="toggleLowerThird()" id="btn-toggle-lt" class="bg-green-500 text-white px-4 py-2 rounded flex-1 hover:bg-green-600 transition">Show</button>
+        <!-- Social Media Rotator (Kiri Bawah) -->
+        <div class="absolute bottom-8 left-8 bg-[rgba(15,23,42,0.6)] backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-xl px-6 py-3 flex items-center gap-4 overflow-hidden h-16 min-w-[250px] shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]">
+            <div id="outSocialRotator" class="flex items-center gap-3 w-full transition-all duration-500">
+                <!-- Konten diisi oleh JS -->
             </div>
         </div>
 
-        <!-- Alert Controls -->
-        <div class="bg-gray-100 p-4 rounded-lg mb-4">
-            <h3 class="font-semibold mb-2">Trigger Alert</h3>
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <button onclick="triggerAlert('sub')" class="bg-purple-500 text-white px-3 py-2 rounded hover:bg-purple-600 transition text-sm">New Subscriber</button>
-                <button onclick="triggerAlert('dono')" class="bg-yellow-500 text-white px-3 py-2 rounded hover:bg-yellow-600 transition text-sm">Donation (Saweria)</button>
+        <!-- Sub Goal Bar (Kanan Bawah) -->
+        <div class="absolute bottom-8 right-8 bg-[rgba(15,23,42,0.6)] backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-xl p-4 w-80 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]">
+            <div class="flex justify-between items-end mb-2">
+                <div class="font-bold uppercase tracking-wider text-sm text-gray-200 flex items-center">
+                    <i class="fas fa-bullseye text-pink-400 mr-2" id="iconGoal"></i><span id="outGoalTitle">Sub Goal</span>
+                </div>
+                <div class="font-bold text-lg">
+                    <span id="outGoalCurrent" class="text-pink-400 transition-all duration-300">0</span> 
+                    <span id="outGoalDivider" class="text-gray-500 mx-1">/</span> 
+                    <span id="outGoalMax" class="text-gray-400">100</span>
+                </div>
+            </div>
+            <!-- Progress Bar Background -->
+            <div id="progressBarContainer" class="w-full bg-gray-800 rounded-full h-4 border border-gray-600 overflow-hidden relative">
+                <!-- Progress Bar Fill -->
+                <div id="outGoalProgressBar" class="h-full rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 relative transition-all duration-1000 ease-out" style="width: 0%;">
+                    <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgdHJhbnNmb3JtPSJyb3RhdGUoNDUgMTAgMTApIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iMTAwJSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjE1KSIvPjwvZz48L3N2Zz4=')] opacity-50"></div>
+                </div>
+            </div>
+            <div id="liveStatus" class="hidden mt-1 text-[10px] text-green-400 text-right animate-pulse font-bold tracking-widest uppercase">
+                <i class="fas fa-circle text-[8px] align-middle mr-1"></i>Live Data
             </div>
         </div>
 
-        <!-- Chat Controls (Simulasi) -->
-        <div class="bg-gray-100 p-4 rounded-lg">
-            <h3 class="font-semibold mb-2">Simulate Chat</h3>
-            <button onclick="simulateChat()" class="w-full bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900 transition">Send Random Chat</button>
+        <!-- Simulasi Alert Box (Tengah Atas) -->
+        <!-- Karena ini statis, kita buat simulasi looping alert untuk demo OBS -->
+        <div id="outAlertBox" class="absolute top-16 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center z-40 w-96 opacity-0 transition-opacity duration-500">
+            <div id="outAlertIcon" class="w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-4 bg-gradient-to-tr from-purple-600 to-pink-500 border-4 border-white shadow-[0_0_20px_#d946ef]">
+                <i class="fas fa-star text-white drop-shadow-lg"></i>
+            </div>
+            <div class="bg-[rgba(15,23,42,0.8)] backdrop-blur-md px-8 py-3 text-center border-t-4 border-purple-500 rounded-xl shadow-2xl">
+                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-pink-300 uppercase tracking-wider">
+                    NEW FOLLOWER
+                </h1>
+                <p class="text-xl mt-1 font-semibold text-white">
+                    <span class="text-yellow-300">SimulasiUser</span> baru saja follow!
+                </p>
+            </div>
         </div>
-        
-        <div class="mt-4 text-center">
-             <button onclick="previewOverlay()" class="text-blue-500 underline text-sm">Lihat Preview Overlay (Keluar Panel)</button>
-        </div>
+
     </div>
+
+    <!-- Custom Toast Notification -->
+    <div id="toast"><i class="fas fa-check-circle mr-2"></i>Link berhasil disalin! Paste di OBS.</div>
 
     <script>
-        // --- DETEKSI LINGKUNGAN (OBS vs BROWSER BIASA) ---
-        // Cara sederhana: Jika URL memiliki parameter ?control=true, buka control panel
+        // Membaca URL saat ini
         const urlParams = new URLSearchParams(window.location.search);
-        const isControlMode = urlParams.get('control') === 'true';
+        const mode = urlParams.get('mode');
 
-        // Dalam lingkungan real, biasanya streamer menggunakan LocalStorage atau WebSocket 
-        // untuk komunikasi antara tab Control dan tab OBS Browser Source.
-        // Di contoh ini, kita gunakan BroadcastChannel API (didukung browser modern) agar
-        // tab control bisa mengirim sinyal ke tab OBS.
-        const channel = new BroadcastChannel('sanobs_overlay_channel');
+        const dashboardView = document.getElementById('dashboardView');
+        const overlayView = document.getElementById('overlayView');
 
-        if (isControlMode) {
-            document.body.classList.add('control-mode');
-        } else {
-            // Ini mode Overlay (yang dimasukkan ke OBS)
-            // Dengarkan perintah dari channel
-            channel.onmessage = (event) => {
-                const data = event.data;
-                if (data.action === 'toggle_lt') {
-                    const lt = document.getElementById('lower-third');
-                    if(data.state === 'show') {
-                        lt.classList.add('show');
-                    } else {
-                        lt.classList.remove('show');
-                    }
-                } else if (data.action === 'update_lt') {
-                    document.getElementById('lt-name').innerText = data.name;
-                    document.getElementById('lt-social').innerText = data.social;
-                } else if (data.action === 'trigger_alert') {
-                    showOverlayAlert(data.type);
-                } else if (data.action === 'chat') {
-                    addChatMessage(data.author, data.text);
-                }
-            };
-        }
-
-        // --- FUNGSI UNTUK CONTROL PANEL ---
-        
-        let ltVisible = false;
-
-        function updateLowerThird() {
-            const name = document.getElementById('ctrl-name').value;
-            const social = document.getElementById('ctrl-social').value;
+        if (mode === 'overlay') {
+            // ==========================================
+            // LOGIKA OVERLAY (Saat di dalam OBS)
+            // ==========================================
             
-            // Jika previewing di tab yang sama
-            if(document.body.classList.contains('control-mode') === false) {
-                 document.getElementById('lt-name').innerText = name;
-                 document.getElementById('lt-social').innerText = social;
-            } else {
-                // Kirim ke tab OBS
-                channel.postMessage({action: 'update_lt', name: name, social: social});
-            }
-        }
+            // 1. Ubah Tampilan menjadi Mode Transparan
+            document.body.classList.remove('dashboard-mode');
+            document.body.classList.add('overlay-mode');
+            dashboardView.style.display = 'none';
+            overlayView.style.display = 'block';
 
-        function toggleLowerThird() {
-            ltVisible = !ltVisible;
-            const btn = document.getElementById('btn-toggle-lt');
-            
-            if (ltVisible) {
-                btn.innerText = "Hide";
-                btn.classList.replace('bg-green-500', 'bg-red-500');
-                btn.classList.replace('hover:bg-green-600', 'hover:bg-red-600');
-            } else {
-                btn.innerText = "Show";
-                btn.classList.replace('bg-red-500', 'bg-green-500');
-                btn.classList.replace('hover:bg-red-600', 'hover:bg-green-600');
-            }
+            // 2. Ambil data dari URL
+            const ytData = urlParams.get('yt') || '/ChannelKamu';
+            const igData = urlParams.get('ig') || '@InstagramKamu';
+            const gmode = urlParams.get('gmode') || 'manual';
 
-            // Jika previewing di tab yang sama
-            if(document.body.classList.contains('control-mode') === false) {
-                 const lt = document.getElementById('lower-third');
-                 ltVisible ? lt.classList.add('show') : lt.classList.remove('show');
-            } else {
-                 channel.postMessage({action: 'toggle_lt', state: ltVisible ? 'show' : 'hide'});
-            }
-        }
+            // 3. Terapkan Logika Berdasarkan Mode (Manual / Live Subs)
+            if (gmode === 'manual') {
+                const goalTitle = urlParams.get('gtitle') || 'Sub Goal';
+                const goalCurrent = parseInt(urlParams.get('gcurr')) || 0;
+                const goalMax = parseInt(urlParams.get('gmax')) || 100;
 
-        function triggerAlert(type) {
-            // Jika previewing di tab yang sama
-            if(document.body.classList.contains('control-mode') === false) {
-                 showOverlayAlert(type);
-            } else {
-                 channel.postMessage({action: 'trigger_alert', type: type});
-            }
-        }
-
-        // --- FUNGSI UNTUK OVERLAY (YANG TAMPIL DI OBS) ---
-
-        let alertTimeout;
-        const dummyNames = ["BudiGaming", "Citra_Dewi", "Kang_Baks", "MabarYuk", "IndoPride01"];
-        
-        function showOverlayAlert(type) {
-            const box = document.getElementById('alert-box');
-            const textEl = document.getElementById('alert-text');
-            const detailEl = document.getElementById('alert-detail');
-            
-            const randomName = dummyNames[Math.floor(Math.random() * dummyNames.length)];
-
-            // Clear previous timeout if any
-            clearTimeout(alertTimeout);
-            
-            box.classList.remove('show'); // Reset animasi
-            
-            setTimeout(() => {
-                if (type === 'sub') {
-                    textEl.innerText = `${randomName} BARU SAJA SUBSCRIBE!`;
-                    detailEl.innerText = "Terima Kasih Banyak!";
-                    box.style.background = "linear-gradient(135deg, #FF4136, #FF851B)";
-                } else if (type === 'dono') {
-                    const amount = Math.floor(Math.random() * 100) * 1000 + 10000; // 10k - 100k
-                    textEl.innerText = `${randomName} MENDONASI MELALUI SAWERIA!`;
-                    detailEl.innerText = `Rp ${amount.toLocaleString('id-ID')}`;
-                    box.style.background = "linear-gradient(135deg, #2ECC40, #01FF70)"; // Hijau duit
-                }
+                document.getElementById('outGoalTitle').textContent = goalTitle;
+                document.getElementById('outGoalCurrent').textContent = goalCurrent.toLocaleString('id-ID');
+                document.getElementById('outGoalMax').textContent = goalMax.toLocaleString('id-ID');
                 
-                box.classList.add('show');
-                
-                // Sembunyikan setelah 5 detik
-                alertTimeout = setTimeout(() => {
-                    box.classList.remove('show');
-                }, 5000);
-            }, 100);
-        }
-
-        const chatMessages = [
-            "Bang main game horor dong wkwk",
-            "GG parah bang mainnya",
-            "Halo absen dulu dari Bandung",
-            "Info mabar ngab",
-            "Suaranya kekecilan bang",
-            "Mantap dapet item bagus tuh",
-            "Wih overlay baru nih? Keren SANOBS!"
-        ];
-
-        function addChatMessage(author, text) {
-            const chatBox = document.getElementById('chat-box');
-            
-            const msgEl = document.createElement('div');
-            msgEl.className = 'chat-message';
-            msgEl.innerHTML = `<span class="chat-author">${author}:</span> ${text}`;
-            
-            chatBox.appendChild(msgEl);
-            
-            // Batasi jumlah chat maksimal agar memori aman
-            if (chatBox.children.length > 8) {
-                chatBox.removeChild(chatBox.firstChild);
-            }
-
-            // Hapus pesan lama setelah 15 detik (hilang perlahan)
-            setTimeout(() => {
-                msgEl.classList.add('chat-fade-out');
+                let percentage = (goalCurrent / goalMax) * 100;
+                if (percentage > 100) percentage = 100;
                 setTimeout(() => {
-                    if(msgEl.parentNode) msgEl.parentNode.removeChild(msgEl);
-                }, 1000); // Tunggu animasi selesai
-            }, 15000);
+                    document.getElementById('outGoalProgressBar').style.width = percentage + '%';
+                }, 500);
+
+            } else if (gmode === 'live') {
+                const chId = urlParams.get('chid');
+                const api = urlParams.get('api');
+                
+                // Ubah Tampilan Bar menjadi Tampilan Live Count
+                document.getElementById('iconGoal').className = "fab fa-youtube text-red-500 mr-2";
+                document.getElementById('outGoalDivider').style.display = 'none';
+                document.getElementById('outGoalMax').style.display = 'none';
+                document.getElementById('progressBarContainer').style.display = 'none';
+                document.getElementById('liveStatus').classList.remove('hidden');
+
+                if (api && chId) {
+                    // MENGGUNAKAN YOUTUBE API ASLI
+                    document.getElementById('outGoalTitle').textContent = "Live Subscribers";
+                    
+                    const fetchSubs = async () => {
+                        try {
+                            const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${chId}&key=${api}`);
+                            const data = await res.json();
+                            if(data.items && data.items.length > 0) {
+                                const subs = parseInt(data.items[0].statistics.subscriberCount);
+                                document.getElementById('outGoalCurrent').textContent = subs.toLocaleString('id-ID');
+                            }
+                        } catch (e) { 
+                            console.error("Gagal mengambil data YouTube API", e); 
+                        }
+                    };
+                    fetchSubs(); // Tarik pertama kali
+                    setInterval(fetchSubs, 60000); // Tarik lagi setiap 60 detik agar tidak kena Limit API
+                } else {
+                    // MODE DEMO (Karena tidak ada API Key)
+                    document.getElementById('outGoalTitle').textContent = "Live Subs (Demo)";
+                    let demoSub = 14520; // Angka awal acak
+                    document.getElementById('outGoalCurrent').textContent = demoSub.toLocaleString('id-ID');
+                    
+                    // Buat angka naik-naik sendiri setiap 5 detik
+                    setInterval(() => {
+                        if(Math.random() > 0.4) { // 60% peluang subscriber nambah
+                            demoSub += Math.floor(Math.random() * 3) + 1;
+                            const curEl = document.getElementById('outGoalCurrent');
+                            curEl.textContent = demoSub.toLocaleString('id-ID');
+                            
+                            // Animasi Pop saat angka naik
+                            curEl.classList.add('text-white', 'scale-125', 'inline-block');
+                            setTimeout(() => curEl.classList.remove('text-white', 'scale-125', 'inline-block'), 300);
+                        }
+                    }, 5000);
+                }
+            }
+
+            // 4. Sistem Rotasi Sosial Media
+            const socials = [];
+            if (ytData) socials.push({ icon: 'fab fa-youtube text-red-500', text: ytData });
+            if (igData) socials.push({ icon: 'fab fa-instagram text-pink-500', text: igData });
+            // Selalu tambahkan Twitch sbg default jika mau
+            // socials.push({ icon: 'fab fa-twitch text-purple-500', text: 'TwitchUser' });
+
+            const rotatorDiv = document.getElementById('outSocialRotator');
+            let currentSocialIndex = 0;
+
+            function rotateSocials() {
+                if (socials.length === 0) return;
+                
+                // Efek fade out
+                rotatorDiv.style.opacity = 0;
+                rotatorDiv.style.transform = 'translateY(-10px)';
+                
+                setTimeout(() => {
+                    // Ganti konten
+                    const data = socials[currentSocialIndex];
+                    rotatorDiv.innerHTML = `
+                        <i class="${data.icon} text-2xl drop-shadow-md"></i>
+                        <span class="text-xl font-bold tracking-wide">${data.text}</span>
+                    `;
+                    
+                    // Efek fade in
+                    rotatorDiv.style.opacity = 1;
+                    rotatorDiv.style.transform = 'translateY(0)';
+                    
+                    // Lanjut index
+                    currentSocialIndex = (currentSocialIndex + 1) % socials.length;
+                }, 500);
+            }
+
+            // Jalankan rotasi pertama, lalu ulang setiap 6 detik
+            rotateSocials();
+            if (socials.length > 1) {
+                setInterval(rotateSocials, 6000);
+            }
+
+            // 5. Simulasi Alert (Muncul setiap 20 detik untuk preview)
+            const outAlertBox = document.getElementById('outAlertBox');
+            setInterval(() => {
+                // Munculkan
+                outAlertBox.style.opacity = 1;
+                outAlertBox.style.transform = 'translate(-50%, 0)'; // Slide in
+                
+                // Sembunyikan setelah 4 detik
+                setTimeout(() => {
+                    outAlertBox.style.opacity = 0;
+                    outAlertBox.style.transform = 'translate(-50%, -20px)'; // Slide up
+                }, 4000);
+            }, 20000); // 20000ms = 20 detik
+
+        } else {
+            // ==========================================
+            // LOGIKA DASHBOARD (Saat di Browser)
+            // ==========================================
+            
+            // Tampilan form generator (sudah diset di HTML secara default)
         }
 
-        function simulateChat() {
-            const randomName = dummyNames[Math.floor(Math.random() * dummyNames.length)];
-            const randomMsg = chatMessages[Math.floor(Math.random() * chatMessages.length)];
-            
-            if(document.body.classList.contains('control-mode') === false) {
-                 addChatMessage(randomName, randomMsg);
+        // --- Fungsi Baru: Ganti Mode Goal di Dashboard ---
+        function toggleGoalMode() {
+            const mode = document.getElementById('inGoalMode').value;
+            if (mode === 'manual') {
+                document.getElementById('modeManual').classList.remove('hidden');
+                document.getElementById('modeLive').classList.add('hidden');
             } else {
-                 channel.postMessage({action: 'chat', author: randomName, text: randomMsg});
+                document.getElementById('modeManual').classList.add('hidden');
+                document.getElementById('modeLive').classList.remove('hidden');
             }
         }
 
-        // FUNGSI DEMO (Hanya untuk keperluan Preview di Editor ini)
-        function previewOverlay() {
-            // Keluar dari control mode untuk melihat overlay langsung
-            document.body.classList.remove('control-mode');
-            alert("Memasuki Mode Overlay. Buka ulang dengan parameter ?control=true untuk kembali ke panel.");
+        function generateOBSLink() {
+            // Ambil inputan user umum
+            const yt = document.getElementById('inYoutube').value;
+            const ig = document.getElementById('inInstagram').value;
+            const gmode = document.getElementById('inGoalMode').value;
+
+            // Dapatkan URL saat ini tanpa parameter query
+            const baseUrl = window.location.href.split('?')[0];
+
+            // Racik Base URL
+            let finalUrl = `${baseUrl}?mode=overlay`
+                         + `&yt=${encodeURIComponent(yt)}`
+                         + `&ig=${encodeURIComponent(ig)}`
+                         + `&gmode=${encodeURIComponent(gmode)}`;
+
+            // Racik tambahan parameter sesuai mode yang dipilih
+            if (gmode === 'manual') {
+                const gtitle = document.getElementById('inGoalTitle').value;
+                const gcurr = document.getElementById('inGoalCurrent').value;
+                const gmax = document.getElementById('inGoalMax').value;
+                finalUrl += `&gtitle=${encodeURIComponent(gtitle)}`
+                          + `&gcurr=${encodeURIComponent(gcurr)}`
+                          + `&gmax=${encodeURIComponent(gmax)}`;
+            } else if (gmode === 'live') {
+                const chid = document.getElementById('inChannelId').value;
+                const api = document.getElementById('inApiKey').value;
+                finalUrl += `&chid=${encodeURIComponent(chid)}`
+                          + `&api=${encodeURIComponent(api)}`;
+            }
+
+            // Tampilkan URL Copy
+            const generatedUrlInput = document.getElementById('generatedUrl');
+            generatedUrlInput.value = finalUrl;
             
-            // Tampilkan Lower Third sebagai demo
-            updateLowerThird();
-            setTimeout(() => { document.getElementById('lower-third').classList.add('show'); }, 500);
+            // Tampilkan Box Result & Preview
+            document.getElementById('resultBox').classList.remove('hidden');
+            document.getElementById('previewBox').classList.remove('hidden');
             
-            // Simulasikan chat masuk setiap beberapa detik
-            setInterval(() => { simulateChat(); }, 4000);
-            
-            // Simulasikan alert donasi sesekali
-            setTimeout(() => { showOverlayAlert('dono'); }, 3000);
+            // Tembak URL ke dalam iFrame untuk di-preview!
+            document.getElementById('previewFrame').src = finalUrl;
         }
 
+        function showToast() {
+            const toast = document.getElementById("toast");
+            toast.className = "show";
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById('generatedUrl');
+            
+            // Teknik copy ke clipboard universal
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); // Untuk perangkat mobile
+
+            try {
+                // Menggunakan execCommand sbg fallback yg lebih aman di iFrame/lingkungan terbatas
+                document.execCommand('copy');
+                showToast();
+            } catch (err) {
+                // Alternatif menggunakan Clipboard API jika didukung penuh
+                navigator.clipboard.writeText(copyText.value).then(() => {
+                    showToast();
+                }).catch(e => {
+                    console.error('Gagal copy: ', e);
+                });
+            }
+        }
     </script>
 </body>
 </html>
