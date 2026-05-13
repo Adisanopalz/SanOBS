@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Overlay Studio - All-in-One OBS Builder</title>
+    <title>Nexus Overlay Studio PRO</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Orbitron:wght@400;700;900&family=Oswald:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Orbitron:wght@400;700;900&family=Oswald:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     
     <script>
         tailwind.config = {
@@ -18,16 +18,19 @@
                         sans: ['Inter', 'sans-serif'],
                         orbitron: ['Orbitron', 'sans-serif'],
                         oswald: ['Oswald', 'sans-serif'],
-                        pixel: ['"Press Start 2P"', 'cursive']
+                        mono: ['JetBrains Mono', 'monospace']
                     },
                     colors: {
-                        nexus: {
-                            dark: '#0a0a0f',
-                            panel: '#12121a',
-                            border: 'rgba(255, 255, 255, 0.08)',
-                            cyan: '#00ffcc',
-                            purple: '#aa00ff',
-                            pink: '#ff0055'
+                        nxs: {
+                            bg: '#050508',
+                            panel: '#0d0d14',
+                            surface: '#151520',
+                            border: 'rgba(255, 255, 255, 0.06)',
+                            primary: '#00e5ff',
+                            secondary: '#b400ff',
+                            accent: '#ff0055',
+                            text: '#e2e8f0',
+                            muted: '#64748b'
                         }
                     }
                 }
@@ -36,324 +39,312 @@
     </script>
 
     <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        :root { --accent-rgb: 0, 229, 255; }
+        body { background-color: #050508; color: #e2e8f0; overflow: hidden; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-        /* Animations */
-        @keyframes slideInRight {
-            from { transform: translateX(20px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        .animate-slide-in { animation: slideInRight 0.3s ease-out forwards; }
+        .glass { background: rgba(13, 13, 20, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glass-panel { background: linear-gradient(145deg, rgba(21, 21, 32, 0.9) 0%, rgba(13, 13, 20, 0.9) 100%); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .input-pro { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: white; font-size: 12px; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; }
+        .input-pro:focus { border-color: var(--nxs-primary, #00e5ff); box-shadow: 0 0 0 2px rgba(0,229,255,0.1); outline: none; }
+        .label-pro { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 4px; font-weight: 600; }
         
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 1; box-shadow: 0 0 20px var(--glow-color); }
-            50% { opacity: 0.7; box-shadow: 0 0 10px var(--glow-color); }
-        }
-        .animate-alert { animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .bg-dot-grid { background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px); background-size: 20px 20px; }
+        #canvas-wrapper { transition: transform 0.1s ease-out; }
         
-        @keyframes bounceIn {
-            0% { transform: scale(0.1); opacity: 0; }
-            60% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(1); }
-        }
-
-        /* Canvas & Grid Utilities */
-        .bg-grid {
-            background-image: linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
-                              linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
+        .widget-node { position: absolute; user-select: none; touch-action: none; transform-origin: center center; }
+        .widget-node::before { content: ''; position: absolute; inset: -1px; border: 1px solid transparent; pointer-events: none; transition: border-color 0.2s; border-radius: inherit; }
+        .widget-node:hover::before { border-color: rgba(255, 255, 255, 0.2); }
+        .widget-node.selected::before { border-color: #00e5ff; box-shadow: 0 0 0 1px #00e5ff, 0 0 15px rgba(0,229,255,0.3); z-index: 50; }
         
-        /* Widget Selection Styles */
-        .widget-node {
-            position: absolute;
-            user-select: none;
-            touch-action: none; /* Prevent browser pan/zoom on touch */
-        }
-        .widget-node:hover { outline: 1px solid rgba(255, 255, 255, 0.3); }
-        .widget-node.selected { outline: 2px solid #00ffcc; outline-offset: 2px; z-index: 50 !important; }
+        .resize-handle { position: absolute; background: #00e5ff; border: 2px solid #000; border-radius: 50%; opacity: 0; pointer-events: none; width: 12px; height: 12px; z-index: 51; }
+        .widget-node.selected .resize-handle { opacity: 1; pointer-events: all; }
+        .resize-nw { top: -6px; left: -6px; cursor: nwse-resize; } .resize-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+        .resize-sw { bottom: -6px; left: -6px; cursor: nesw-resize; } .resize-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
         
-        .resize-handle {
-            position: absolute;
-            right: -6px;
-            bottom: -6px;
-            width: 14px;
-            height: 14px;
-            background: #00ffcc;
-            border: 2px solid #000;
-            border-radius: 50%;
-            cursor: nwse-resize;
-            display: none;
-            box-shadow: 0 0 10px rgba(0,255,204,0.5);
-        }
-        .widget-node.selected .resize-handle { display: block; }
-
-        /* Form Inputs */
-        .panel-input {
-            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 6px; padding: 6px 10px; color: white; font-size: 13px; outline: none;
-            transition: border-color 0.2s;
-        }
-        .panel-input:focus { border-color: #00ffcc; }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee linear infinite; }
         
-        /* Glassmorphism Panel */
-        .glass-panel {
-            background: rgba(18, 18, 26, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+        @keyframes rgb-border { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .rgb-webcam-border {
+            position: absolute; inset: -4px; border-radius: inherit; z-index: -1;
+            background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+            background-size: 400%; animation: rgb-border 20s linear infinite; filter: blur(5px);
         }
 
-        /* OBS Mode Styles */
-        body.obs-mode #app-header, 
-        body.obs-mode #sidebar-left, 
-        body.obs-mode #sidebar-right {
-            display: none !important;
-        }
-        body.obs-mode #workspace {
-            padding: 0; background: transparent;
-        }
-        body.obs-mode #canvas-wrapper {
-            max-width: 100%; max-height: 100%; box-shadow: none; border: none; outline: none;
-        }
-        body.obs-mode .bg-grid { background-image: none !important; }
-        body.obs-mode .widget-node { outline: none !important; }
-        body.obs-mode .resize-handle { display: none !important; }
-        body.obs-mode .alert-placeholder { display: none !important; }
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
+        .anim-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+
+        /* Custom Tabs */
+        .tab-btn { color: #64748b; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab-btn.active { color: #00e5ff; border-bottom-color: #00e5ff; }
+
+        /* Toast */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: rgba(13, 13, 20, 0.9); border: 1px solid rgba(255,255,255,0.1); border-left: 3px solid #00e5ff; padding: 12px 16px; border-radius: 6px; color: white; font-size: 13px; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(10px); animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
     </style>
 </head>
-<body class="bg-nexus-dark text-slate-200 h-screen w-screen overflow-hidden flex flex-col font-sans selection:bg-nexus-cyan selection:text-black">
+<body class="flex flex-col h-screen font-sans selection:bg-nxs-primary selection:text-black">
 
-    <header id="app-header" class="h-16 glass-panel flex items-center justify-between px-6 z-30 relative shadow-md">
+    <header class="h-14 glass flex items-center justify-between px-4 z-40 border-b border-nxs-border shrink-0">
         <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-nexus-cyan to-nexus-purple flex items-center justify-center shadow-[0_0_20px_rgba(0,255,204,0.3)]">
-                <i class="fa-solid fa-layer-group text-black text-xl"></i>
+            <div class="w-8 h-8 rounded bg-gradient-to-br from-nxs-primary to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(0,229,255,0.3)]">
+                <i class="fa-solid fa-layer-group text-nxs-bg text-sm"></i>
             </div>
-            <div>
-                <h1 class="font-black text-xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 m-0 leading-tight">
-                    NEXUS <span class="font-light text-nexus-cyan">STUDIO</span>
-                </h1>
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Overlay Builder Pro</p>
+            <div class="flex flex-col">
+                <h1 class="font-bold text-sm tracking-widest text-white leading-none">NEXUS<span class="font-light text-nxs-primary">PRO</span></h1>
+                <span class="text-[9px] text-nxs-muted uppercase">Broadcast Studio</span>
+            </div>
+            
+            <div class="h-6 w-px bg-nxs-border mx-2"></div>
+            
+            <!-- Scene Selector -->
+            <div class="relative group">
+                <button class="flex items-center gap-2 px-3 py-1.5 bg-nxs-surface hover:bg-white/10 border border-nxs-border rounded-md text-xs transition-colors">
+                    <i class="fa-solid fa-clapperboard text-nxs-muted"></i>
+                    <span id="current-scene-name" class="font-medium">Main Gaming</span>
+                    <i class="fa-solid fa-chevron-down text-[10px] text-nxs-muted ml-2"></i>
+                </button>
             </div>
         </div>
 
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
-                <div id="save-status-indicator" class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                <span id="save-status-text" class="text-xs text-gray-400 font-medium">Autosaved</span>
+        <!-- Toolbar Center -->
+        <div class="flex items-center gap-1 bg-nxs-surface p-1 rounded-lg border border-nxs-border">
+            <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-nxs-muted hover:text-white transition" title="Undo" onclick="showToast('Undo unavailable in demo', 'info')"><i class="fa-solid fa-rotate-left"></i></button>
+            <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-nxs-muted hover:text-white transition" title="Redo" onclick="showToast('Redo unavailable in demo', 'info')"><i class="fa-solid fa-rotate-right"></i></button>
+            <div class="w-px h-4 bg-nxs-border mx-1"></div>
+            <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-nxs-muted hover:text-white transition" onclick="toggleGrid()" title="Toggle Grid"><i class="fa-solid fa-border-all"></i></button>
+            <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-nxs-muted hover:text-white transition" onclick="centerCanvas()" title="Center Canvas"><i class="fa-solid fa-compress"></i></button>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 px-2 py-1 rounded bg-green-500/10 border border-green-500/20">
+                <div id="save-dot" class="w-2 h-2 rounded-full bg-green-500"></div>
+                <span id="save-text" class="text-[10px] font-mono text-green-400">Synced</span>
             </div>
-            <div class="h-6 w-px bg-nexus-border mx-2"></div>
-            <button onclick="toggleGrid()" class="w-10 h-10 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-white" title="Toggle Grid">
-                <i class="fa-solid fa-border-all"></i>
-            </button>
-            <button onclick="clearCanvas()" class="w-10 h-10 rounded-lg hover:bg-red-500/20 transition-colors text-gray-400 hover:text-red-400" title="Clear Canvas">
-                <i class="fa-solid fa-trash-can"></i>
-            </button>
-            <button onclick="enterObsMode()" class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-nexus-purple to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-lg font-bold text-sm shadow-[0_0_20px_rgba(170,0,255,0.4)] transition-all ml-2">
-                <i class="fa-brands fa-obs"></i> OBS PREVIEW
+            <button onclick="openObsModal()" class="flex items-center gap-2 px-4 py-1.5 bg-white text-black hover:bg-gray-200 rounded-md text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                <i class="fa-brands fa-obs"></i> BROWSER SOURCE
             </button>
         </div>
     </header>
 
-    <main class="flex-1 flex overflow-hidden relative z-10">
+    <main class="flex-1 flex overflow-hidden relative">
         
-        <aside id="sidebar-left" class="w-72 glass-panel border-r border-nexus-border flex flex-col z-20 transition-all duration-300">
-            <!-- Widgets Palette -->
-            <div class="p-5 border-b border-nexus-border">
-                <h2 class="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-plus text-nexus-cyan"></i> Add Elements
-                </h2>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="addWidget('text')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nexus-cyan/10 hover:text-nexus-cyan border border-white/5 hover:border-nexus-cyan/50 rounded-xl transition-all group">
-                        <i class="fa-solid fa-font text-xl text-gray-400 group-hover:text-nexus-cyan transition-colors"></i>
-                        <span class="text-xs font-semibold">Text</span>
-                    </button>
-                    <button onclick="addWidget('clock')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nexus-cyan/10 hover:text-nexus-cyan border border-white/5 hover:border-nexus-cyan/50 rounded-xl transition-all group">
-                        <i class="fa-solid fa-clock text-xl text-gray-400 group-hover:text-nexus-cyan transition-colors"></i>
-                        <span class="text-xs font-semibold">Clock</span>
-                    </button>
-                    <button onclick="addWidget('goal')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nexus-purple/10 hover:text-nexus-purple border border-white/5 hover:border-nexus-purple/50 rounded-xl transition-all group">
-                        <i class="fa-solid fa-bullseye text-xl text-gray-400 group-hover:text-nexus-purple transition-colors"></i>
-                        <span class="text-xs font-semibold">Sub Goal</span>
-                    </button>
-                    <button onclick="addWidget('chat')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nexus-pink/10 hover:text-nexus-pink border border-white/5 hover:border-nexus-pink/50 rounded-xl transition-all group">
-                        <i class="fa-solid fa-comments text-xl text-gray-400 group-hover:text-nexus-pink transition-colors"></i>
-                        <span class="text-xs font-semibold">Live Chat</span>
-                    </button>
-                    <button onclick="addWidget('alert')" class="col-span-2 flex items-center justify-center gap-3 p-3 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 hover:from-yellow-500/20 hover:to-orange-500/20 text-yellow-500 border border-yellow-500/30 hover:border-yellow-500/60 rounded-xl transition-all">
-                        <i class="fa-solid fa-bell text-lg"></i>
-                        <span class="text-xs font-bold uppercase tracking-wider">Alert Box</span>
-                    </button>
+        <!-- Left Sidebar: Elements -->
+        <aside class="w-64 glass-panel border-r border-nxs-border flex flex-col z-30 shrink-0">
+            <div class="p-3 border-b border-nxs-border flex gap-2 overflow-x-auto hide-scrollbar">
+                <button class="px-3 py-1.5 bg-nxs-surface rounded text-xs font-medium text-white shrink-0">Elements</button>
+                <button class="px-3 py-1.5 hover:bg-nxs-surface rounded text-xs font-medium text-nxs-muted shrink-0 transition" onclick="showToast('Upload feature coming soon', 'info')">Uploads</button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                <!-- Basic -->
+                <div>
+                    <h3 class="label-pro mb-3 flex items-center gap-2"><i class="fa-solid fa-cube"></i> Basic</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="addWidget('text')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nxs-primary/10 border border-white/5 hover:border-nxs-primary/50 rounded-lg transition-all group">
+                            <i class="fa-solid fa-t text-lg text-nxs-muted group-hover:text-nxs-primary"></i><span class="text-[10px] font-medium">Text</span>
+                        </button>
+                        <button onclick="addWidget('clock')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nxs-primary/10 border border-white/5 hover:border-nxs-primary/50 rounded-lg transition-all group">
+                            <i class="fa-regular fa-clock text-lg text-nxs-muted group-hover:text-nxs-primary"></i><span class="text-[10px] font-medium">Clock</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stream Alerts & Data -->
+                <div>
+                    <h3 class="label-pro mb-3 flex items-center gap-2"><i class="fa-solid fa-satellite-dish"></i> Stream Data</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="addWidget('goal')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nxs-secondary/10 border border-white/5 hover:border-nxs-secondary/50 rounded-lg transition-all group">
+                            <i class="fa-solid fa-bullseye text-lg text-nxs-muted group-hover:text-nxs-secondary"></i><span class="text-[10px] font-medium">Goal Bar</span>
+                        </button>
+                        <button onclick="addWidget('alert')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nxs-accent/10 border border-white/5 hover:border-nxs-accent/50 rounded-lg transition-all group">
+                            <i class="fa-solid fa-bell text-lg text-nxs-muted group-hover:text-nxs-accent"></i><span class="text-[10px] font-medium">Alert Box</span>
+                        </button>
+                        <button onclick="addWidget('chat')" class="col-span-2 flex items-center justify-center gap-2 p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-all">
+                            <i class="fa-regular fa-comments text-nxs-muted"></i><span class="text-[10px] font-medium">Live Chat Box</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Advanced / Media -->
+                <div>
+                    <h3 class="label-pro mb-3 flex items-center gap-2"><i class="fa-solid fa-bolt"></i> Advanced</h3>
+                    <div class="space-y-2">
+                        <button onclick="addWidget('webcam')" class="w-full flex items-center gap-3 p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-all">
+                            <div class="w-6 h-6 rounded bg-gradient-to-r from-red-500 to-purple-500 flex items-center justify-center"><i class="fa-solid fa-camera text-xs text-white"></i></div>
+                            <div class="text-left"><p class="text-[10px] font-bold">RGB Webcam</p><p class="text-[8px] text-nxs-muted">Animated neon frame</p></div>
+                        </button>
+                        <button onclick="addWidget('spotify')" class="w-full flex items-center gap-3 p-2 bg-white/5 hover:bg-green-500/10 border border-white/5 hover:border-green-500/30 rounded-lg transition-all">
+                            <div class="w-6 h-6 rounded bg-[#1DB954] flex items-center justify-center"><i class="fa-brands fa-spotify text-xs text-white"></i></div>
+                            <div class="text-left"><p class="text-[10px] font-bold">Now Playing</p><p class="text-[8px] text-nxs-muted">Spotify mockup</p></div>
+                        </button>
+                        <button onclick="addWidget('social')" class="w-full flex items-center gap-3 p-2 bg-white/5 hover:bg-blue-500/10 border border-white/5 hover:border-blue-500/30 rounded-lg transition-all">
+                            <div class="w-6 h-6 rounded bg-blue-500 flex items-center justify-center"><i class="fa-brands fa-twitter text-xs text-white"></i></div>
+                            <div class="text-left"><p class="text-[10px] font-bold">Social Handles</p><p class="text-[8px] text-nxs-muted">Animated lower third</p></div>
+                        </button>
+                    </div>
                 </div>
             </div>
-
-            <!-- Layer Manager -->
-            <div class="flex-1 overflow-y-auto p-5">
-                <h2 class="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-bars-staggered text-gray-400"></i> Layers
-                </h2>
-                <div id="layer-list" class="flex flex-col gap-2">
-                    <!-- Layers injected here via JS -->
+            
+            <!-- Layer List Mini -->
+            <div class="h-1/3 border-t border-nxs-border bg-nxs-surface/50 flex flex-col">
+                <div class="p-2 border-b border-nxs-border"><span class="text-[10px] font-bold uppercase tracking-wider text-nxs-muted">Layers</span></div>
+                <div id="layer-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                    <!-- Layers JS -->
                 </div>
             </div>
         </aside>
 
-        <section id="workspace" class="flex-1 bg-[#0f0f15] relative flex items-center justify-center p-8 overflow-hidden">
-            <!-- Background Decoration -->
-            <div class="absolute inset-0 bg-gradient-to-br from-nexus-cyan/5 to-nexus-purple/5 pointer-events-none"></div>
-            
-            <!-- OBS Exit Button (Hidden in normal mode) -->
-            <div id="obs-exit-btn" class="absolute top-4 left-4 z-50 hidden">
-                <button onclick="exitObsMode()" class="bg-red-500/90 hover:bg-red-400 text-white px-6 py-3 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.5)] font-bold tracking-wider flex items-center gap-2 backdrop-blur-md">
-                    <i class="fa-solid fa-arrow-left"></i> EXIT OBS PREVIEW
-                </button>
+        <section id="workspace" class="flex-1 bg-nxs-bg relative overflow-hidden flex flex-col">
+            <!-- Simulated AI Prompt Bar (Top of workspace) -->
+            <div class="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-[500px] glass rounded-full p-1.5 flex items-center shadow-2xl border border-white/10">
+                <i class="fa-solid fa-wand-magic-sparkles text-nxs-primary ml-3 mr-2"></i>
+                <input type="text" id="ai-prompt" placeholder="Describe layout (e.g., 'Neon Cyberpunk Stream')..." class="flex-1 bg-transparent border-none text-sm text-white placeholder-gray-500 focus:outline-none">
+                <button onclick="simulateAIGeneration()" class="bg-nxs-primary text-black px-4 py-1.5 rounded-full text-xs font-bold hover:bg-white transition-colors">Generate</button>
             </div>
 
-            <!-- Canvas Container (Maintains 16:9 Aspect Ratio) -->
-            <div id="canvas-wrapper" class="relative bg-black/90 shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-gray-800 ring-1 ring-white/5 rounded-sm overflow-hidden" 
-                 style="aspect-ratio: 16/9; width: 100%; max-width: calc(100vh * 16/9 - 160px); max-height: 100%;">
+            <!-- Interactive Canvas Container -->
+            <div id="pan-zoom-container" class="w-full h-full flex items-center justify-center relative cursor-grab active:cursor-grabbing bg-dot-grid" onwheel="handleWheel(event)" onmousedown="startPan(event)">
                 
-                <!-- The Scalable Canvas -->
-                <div id="canvas" class="absolute top-0 left-0 w-[1920px] h-[1080px] origin-top-left bg-grid">
-                    <!-- Widgets injected here via JS -->
+                <div id="canvas-wrapper" class="relative bg-[#000000] ring-1 ring-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden" 
+                     style="width: 1920px; height: 1080px; transform: scale(0.5); transform-origin: center;">
+                    <!-- Base Canvas Layer -->
+                    <div id="canvas" class="absolute inset-0 w-full h-full">
+                        <!-- Widgets Injected Here -->
+                    </div>
                 </div>
+
+            </div>
+
+            <!-- Canvas Info Footer -->
+            <div class="absolute bottom-4 left-4 z-20 glass px-3 py-1.5 rounded-md flex items-center gap-3 border border-white/5">
+                <span class="text-[10px] font-mono text-nxs-muted">1920 x 1080 (16:9)</span>
+                <span id="zoom-level" class="text-[10px] font-mono text-nxs-primary">50%</span>
             </div>
         </section>
 
-        <aside id="sidebar-right" class="w-80 glass-panel border-l border-nexus-border flex flex-col z-20">
-            <div class="h-14 border-b border-nexus-border flex items-center px-5 bg-white/[0.02]">
-                <h2 class="font-bold text-sm tracking-widest flex items-center gap-2">
-                    <i class="fa-solid fa-sliders text-nexus-cyan"></i> PROPERTIES
-                </h2>
+        <aside class="w-72 glass-panel border-l border-nxs-border flex flex-col z-30 shrink-0">
+            <div class="flex border-b border-nxs-border">
+                <button class="flex-1 py-3 text-xs font-bold tab-btn active" onclick="switchPropTab('design')">Design</button>
+                <button class="flex-1 py-3 text-xs font-bold tab-btn" onclick="switchPropTab('data')">Data</button>
             </div>
-            
-            <div id="properties-panel" class="p-5 flex-1 overflow-y-auto">
-                <!-- Empty State -->
-                <div id="prop-empty-state" class="flex flex-col items-center justify-center h-full text-gray-500 gap-4 opacity-50">
-                    <i class="fa-solid fa-object-ungroup text-5xl"></i>
-                    <p class="text-sm font-medium">Select an element to edit</p>
+
+            <div id="properties-panel" class="flex-1 overflow-y-auto p-4">
+                <div id="prop-empty" class="h-full flex flex-col items-center justify-center text-center opacity-50">
+                    <i class="fa-solid fa-shapes text-3xl mb-3"></i>
+                    <p class="text-xs">Select an element<br>to view properties</p>
                 </div>
 
-                <!-- Dynamic Form (Hidden by default) -->
-                <div id="prop-form" class="hidden space-y-6 animate-slide-in">
-                    
-                    <!-- Transform Tools -->
-                    <div class="space-y-3">
-                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Transform</h3>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-[10px] text-gray-400 uppercase mb-1 block">X Pos</label>
-                                <input type="number" id="prop-x" class="panel-input font-mono" onchange="updateSelected('x', this.value)">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-gray-400 uppercase mb-1 block">Y Pos</label>
-                                <input type="number" id="prop-y" class="panel-input font-mono" onchange="updateSelected('y', this.value)">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-gray-400 uppercase mb-1 block">Width</label>
-                                <input type="number" id="prop-w" class="panel-input font-mono" onchange="updateSelected('w', this.value)">
-                            </div>
-                            <div>
-                                <label class="text-[10px] text-gray-400 uppercase mb-1 block">Height</label>
-                                <input type="number" id="prop-h" class="panel-input font-mono" onchange="updateSelected('h', this.value)">
-                            </div>
+                <div id="prop-content" class="hidden space-y-5">
+                    <!-- Layout Section -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="label-pro mb-0">Layout</h3>
+                            <button onclick="deleteSelected()" class="text-red-500 hover:text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="text-[9px] text-nxs-muted mb-1 block">X</label><input type="number" id="prop-x" class="input-pro" onchange="updateSelected('x', this.value)"></div>
+                            <div><label class="text-[9px] text-nxs-muted mb-1 block">Y</label><input type="number" id="prop-y" class="input-pro" onchange="updateSelected('y', this.value)"></div>
+                            <div><label class="text-[9px] text-nxs-muted mb-1 block">W</label><input type="number" id="prop-w" class="input-pro" onchange="updateSelected('w', this.value)"></div>
+                            <div><label class="text-[9px] text-nxs-muted mb-1 block">H</label><input type="number" id="prop-h" class="input-pro" onchange="updateSelected('h', this.value)"></div>
                         </div>
                     </div>
 
-                    <hr class="border-nexus-border">
+                    <div class="h-px bg-nxs-border w-full"></div>
 
-                    <!-- Appearance Tools -->
-                    <div class="space-y-4">
-                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Appearance</h3>
+                    <!-- Appearance Section -->
+                    <div id="tab-design">
+                        <h3 class="label-pro mb-3">Appearance</h3>
                         
-                        <!-- Color Picker -->
-                        <div id="prop-group-color" class="hidden">
-                            <label class="text-xs text-gray-300 mb-2 block">Primary Color</label>
-                            <div class="flex items-center gap-3">
-                                <div class="relative w-10 h-10 rounded overflow-hidden border border-white/20 cursor-pointer">
-                                    <input type="color" id="prop-color" class="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" onchange="updateSelectedProp('color', this.value); document.getElementById('prop-color-hex').value = this.value;">
-                                </div>
-                                <input type="text" id="prop-color-hex" class="panel-input flex-1 uppercase font-mono" onchange="updateSelectedProp('color', this.value); document.getElementById('prop-color').value = this.value;">
+                        <div id="prop-color-group" class="mb-3 hidden">
+                            <label class="text-[10px] text-gray-300 block mb-1">Primary Color</label>
+                            <div class="flex gap-2">
+                                <input type="color" id="prop-color" class="w-8 h-8 rounded border-none bg-transparent cursor-pointer" onchange="updateSelectedProp('color', this.value)">
+                                <input type="text" id="prop-color-hex" class="input-pro flex-1" onchange="updateSelectedProp('color', this.value)">
                             </div>
                         </div>
 
-                        <!-- Glow Slider -->
-                        <div id="prop-group-glow" class="hidden">
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="text-xs text-gray-300">Neon Glow</label>
-                                <span id="glow-val" class="text-xs text-nexus-cyan font-mono">20px</span>
-                            </div>
-                            <input type="range" id="prop-glow" min="0" max="50" class="w-full accent-nexus-cyan" oninput="document.getElementById('glow-val').innerText = this.value + 'px'; updateSelectedProp('glow', this.value)">
+                        <div id="prop-bg-group" class="mb-3 hidden">
+                            <label class="text-[10px] text-gray-300 block mb-1">Background Color</label>
+                            <input type="color" id="prop-bg" class="w-full h-8 rounded border-none bg-transparent cursor-pointer" onchange="updateSelectedProp('bgColor', this.value)">
                         </div>
 
-                        <!-- Opacity Slider -->
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="text-xs text-gray-300">Opacity</label>
-                                <span id="opacity-val" class="text-xs text-nexus-cyan font-mono">100%</span>
-                            </div>
-                            <input type="range" id="prop-opacity" min="0.1" max="1" step="0.05" class="w-full accent-nexus-cyan" oninput="document.getElementById('opacity-val').innerText = Math.round(this.value * 100) + '%'; updateSelectedProp('opacity', this.value)">
-                        </div>
-                    </div>
-
-                    <!-- Typography Tools (Text/Clock) -->
-                    <div id="prop-group-typography" class="hidden space-y-4 pt-4 border-t border-nexus-border">
-                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Typography</h3>
-                        
-                        <div id="prop-group-text" class="hidden">
-                            <label class="text-xs text-gray-300 mb-1 block">Content</label>
-                            <textarea id="prop-text" rows="2" class="panel-input resize-none" oninput="updateSelectedProp('text', this.value)"></textarea>
+                        <div id="prop-opacity-group" class="mb-3">
+                            <div class="flex justify-between"><label class="text-[10px] text-gray-300">Opacity</label><span id="val-opacity" class="text-[9px] font-mono text-nxs-primary">100%</span></div>
+                            <input type="range" id="prop-opacity" min="0" max="1" step="0.05" class="w-full accent-nxs-primary" oninput="updateSelectedProp('opacity', this.value); document.getElementById('val-opacity').innerText=Math.round(this.value*100)+'%'">
                         </div>
 
-                        <div>
-                            <label class="text-xs text-gray-300 mb-1 block">Font Family</label>
-                            <select id="prop-font" class="panel-input bg-[#1a1a24]" onchange="updateSelectedProp('font', this.value)">
-                                <option value="Inter">Inter (Clean)</option>
-                                <option value="Oswald">Oswald (Tall)</option>
-                                <option value="Orbitron">Orbitron (Sci-Fi)</option>
-                                <option value="'Press Start 2P'">8-Bit (Retro)</option>
-                            </select>
+                        <div id="prop-glow-group" class="mb-3 hidden">
+                            <div class="flex justify-between"><label class="text-[10px] text-gray-300">Neon Glow</label><span id="val-glow" class="text-[9px] font-mono text-nxs-primary">0px</span></div>
+                            <input type="range" id="prop-glow" min="0" max="100" class="w-full accent-nxs-primary" oninput="updateSelectedProp('glow', this.value); document.getElementById('val-glow').innerText=this.value+'px'">
                         </div>
 
-                        <div id="prop-group-fontsize" class="hidden">
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="text-xs text-gray-300">Font Size</label>
-                                <span id="fontsize-val" class="text-xs text-nexus-cyan font-mono">60px</span>
-                            </div>
-                            <input type="range" id="prop-fontsize" min="12" max="250" class="w-full accent-nexus-cyan" oninput="document.getElementById('fontsize-val').innerText = this.value + 'px'; updateSelectedProp('fontSize', this.value)">
+                        <div id="prop-radius-group" class="mb-3 hidden">
+                            <div class="flex justify-between"><label class="text-[10px] text-gray-300">Corner Radius</label><span id="val-radius" class="text-[9px] font-mono text-nxs-primary">0px</span></div>
+                            <input type="range" id="prop-radius" min="0" max="100" class="w-full accent-nxs-primary" oninput="updateSelectedProp('borderRadius', this.value); document.getElementById('val-radius').innerText=this.value+'px'">
                         </div>
-                    </div>
 
-                    <!-- Goal Tools -->
-                    <div id="prop-group-goal" class="hidden space-y-4 pt-4 border-t border-nexus-border">
-                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Goal Settings</h3>
-                        <div>
-                            <label class="text-xs text-gray-300 mb-1 block">Title</label>
-                            <input type="text" id="prop-title" class="panel-input" oninput="updateSelectedProp('title', this.value)">
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div id="prop-typography" class="mt-4 hidden space-y-3">
+                            <h3 class="label-pro border-t border-nxs-border pt-3">Typography</h3>
                             <div>
-                                <label class="text-xs text-gray-300 mb-1 block">Current</label>
-                                <input type="number" id="prop-current" class="panel-input font-mono" oninput="updateSelectedProp('current', this.value)">
+                                <label class="text-[10px] text-gray-300 block mb-1">Font Family</label>
+                                <select id="prop-font" class="input-pro bg-[#0d0d14]" onchange="updateSelectedProp('font', this.value)">
+                                    <option value="Inter">Inter (Clean)</option>
+                                    <option value="Oswald">Oswald (Impact)</option>
+                                    <option value="Orbitron">Orbitron (Sci-Fi)</option>
+                                    <option value="'JetBrains Mono'">JetBrains (Code)</option>
+                                </select>
                             </div>
-                            <div>
-                                <label class="text-xs text-gray-300 mb-1 block">Target</label>
-                                <input type="number" id="prop-target" class="panel-input font-mono" oninput="updateSelectedProp('target', this.value)">
+                            <div id="prop-fontsize-group">
+                                <div class="flex justify-between"><label class="text-[10px] text-gray-300">Size</label><span id="val-fontsize" class="text-[9px] font-mono text-nxs-primary">12px</span></div>
+                                <input type="range" id="prop-fontsize" min="10" max="300" class="w-full accent-nxs-primary" oninput="updateSelectedProp('fontSize', this.value); document.getElementById('val-fontsize').innerText=this.value+'px'">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Alert Tools -->
-                    <div id="prop-group-alert" class="hidden space-y-4 pt-4 border-t border-nexus-border">
-                        <h3 class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Alert Controls</h3>
-                        <button onclick="triggerAlert()" class="w-full py-3 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 hover:border-yellow-500 rounded-lg transition-colors font-bold flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-play"></i> Trigger Test Alert
-                        </button>
-                        <p class="text-[10px] text-gray-500 text-center leading-relaxed">Alerts remain hidden on the canvas until an event triggers them.</p>
+                    <!-- Data / Content Section -->
+                    <div id="tab-data" class="hidden space-y-4">
+                        <div id="data-text" class="hidden">
+                            <label class="label-pro">Content Text</label>
+                            <textarea id="prop-text" rows="3" class="input-pro resize-none" oninput="updateSelectedProp('text', this.value)"></textarea>
+                        </div>
+
+                        <div id="data-goal" class="hidden space-y-3">
+                            <label class="label-pro">Goal Configuration</label>
+                            <div><label class="text-[10px] text-gray-300 block mb-1">Title</label><input type="text" id="prop-title" class="input-pro" oninput="updateSelectedProp('title', this.value)"></div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><label class="text-[10px] text-gray-300 block mb-1">Current</label><input type="number" id="prop-current" class="input-pro" oninput="updateSelectedProp('current', this.value)"></div>
+                                <div><label class="text-[10px] text-gray-300 block mb-1">Target</label><input type="number" id="prop-target" class="input-pro" oninput="updateSelectedProp('target', this.value)"></div>
+                            </div>
+                        </div>
+
+                        <div id="data-social" class="hidden space-y-3">
+                            <label class="label-pro">Social Handle</label>
+                            <div>
+                                <label class="text-[10px] text-gray-300 block mb-1">Platform</label>
+                                <select id="prop-platform" class="input-pro bg-[#0d0d14]" onchange="updateSelectedProp('platform', this.value)">
+                                    <option value="twitter">Twitter / X</option>
+                                    <option value="instagram">Instagram</option>
+                                    <option value="youtube">YouTube</option>
+                                    <option value="tiktok">TikTok</option>
+                                </select>
+                            </div>
+                            <div><label class="text-[10px] text-gray-300 block mb-1">Username</label><input type="text" id="prop-username" class="input-pro" oninput="updateSelectedProp('username', this.value)"></div>
+                        </div>
+
+                        <div id="data-alert" class="hidden space-y-3">
+                            <label class="label-pro">Alert Trigger</label>
+                            <button onclick="triggerAlert()" class="w-full py-2 bg-nxs-accent/20 hover:bg-nxs-accent/40 text-nxs-accent border border-nxs-accent/50 rounded text-xs font-bold transition">
+                                <i class="fa-solid fa-play mr-2"></i> Test Alert
+                            </button>
+                            <p class="text-[9px] text-nxs-muted leading-relaxed">Alert widgets remain hidden on canvas until triggered via API or test button.</p>
+                        </div>
                     </div>
 
                 </div>
@@ -361,562 +352,580 @@
         </aside>
     </main>
 
+    <div id="toast-container"></div>
+
+    <!-- OBS Browser Source Modal -->
+    <div id="obs-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity">
+        <div class="bg-nxs-surface border border-nxs-border rounded-xl w-[500px] shadow-2xl p-6 transform scale-95 transition-transform" id="obs-modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fa-brands fa-obs text-white"></i> OBS Browser Source</h2>
+                <button onclick="closeObsModal()" class="text-nxs-muted hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <p class="text-xs text-gray-400 mb-4">Add a new Browser Source in OBS Studio and use the following URL. Check "Make background transparent".</p>
+            
+            <div class="bg-black/50 border border-nxs-border rounded p-3 mb-4 flex items-center justify-between group">
+                <code class="text-xs text-nxs-primary font-mono select-all" id="obs-url">https://nexus.local/s/xyz123</code>
+                <button onclick="copyToClipboard('obs-url')" class="text-nxs-muted hover:text-white px-2 py-1 rounded bg-white/5 opacity-0 group-hover:opacity-100 transition"><i class="fa-regular fa-copy"></i></button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-white/5 rounded p-3 text-center">
+                    <span class="block text-[10px] text-nxs-muted uppercase tracking-wider mb-1">Width</span>
+                    <span class="font-mono text-white font-bold">1920</span>
+                </div>
+                <div class="bg-white/5 rounded p-3 text-center">
+                    <span class="block text-[10px] text-nxs-muted uppercase tracking-wider mb-1">Height</span>
+                    <span class="font-mono text-white font-bold">1080</span>
+                </div>
+            </div>
+
+            <button onclick="closeObsModal()" class="w-full py-2 bg-white text-black font-bold rounded hover:bg-gray-200 transition">Done</button>
+        </div>
+    </div>
+
     <script>
-        // --- CONSTANTS & STATE ---
-        const CANVAS_WIDTH = 1920;
-        const CANVAS_HEIGHT = 1080;
-        let scaleFactor = 1;
+        // --- CORE STATE ---
+        const CANVAS_W = 1920;
+        const CANVAS_H = 1080;
+        let scale = 0.5;
+        let isPanning = false, startPanX, startPanY, panX = 0, panY = 0;
         
         let state = {
             widgets: [],
-            selectedId: null,
-            showGrid: true
+            selectedId: null
         };
 
-        const defaultProps = {
-            text: { text: 'NEXUS STREAM', color: '#00ffcc', glow: 20, fontSize: 80, font: 'Inter', opacity: 1 },
-            clock: { color: '#ffffff', glow: 15, font: 'Orbitron', fontSize: 60, opacity: 1 },
-            goal: { title: 'Follower Goal', current: 42, target: 100, color: '#aa00ff', glow: 15, opacity: 1 },
-            chat: { color: '#ff0055', opacity: 1 },
-            alert: { color: '#ff0055', glow: 30, opacity: 1 }
-        };
-
-        const domElements = {
+        const DOM = {
             canvas: document.getElementById('canvas'),
             wrapper: document.getElementById('canvas-wrapper'),
-            layerList: document.getElementById('layerList'),
-            workspace: document.getElementById('workspace')
+            layerList: document.getElementById('layer-list'),
+            propPanel: document.getElementById('prop-content'),
+            propEmpty: document.getElementById('prop-empty')
         };
 
-        // --- INIT & CORE FUNCTIONS ---
-        function init() {
-            loadState();
-            setupCanvasScaling();
-            setupWorkspaceClick();
-            startClockLoop();
-            renderAll();
-        }
+        // --- DEFAULTS ---
+        const defaults = {
+            text: { text: 'NEXUS PRO', color: '#ffffff', glow: 0, fontSize: 80, font: 'Orbitron', opacity: 1 },
+            clock: { color: '#00e5ff', glow: 15, font: 'JetBrains Mono', fontSize: 60, opacity: 1 },
+            goal: { title: 'Follower Goal', current: 150, target: 500, color: '#b400ff', glow: 20, opacity: 1, bgColor: '#151520', borderRadius: 12 },
+            chat: { opacity: 1, bgColor: '#000000', borderRadius: 12 },
+            alert: { color: '#ff0055', glow: 30, opacity: 1 },
+            webcam: { opacity: 1, borderRadius: 8 },
+            spotify: { opacity: 1, borderRadius: 16, bgColor: '#111' },
+            social: { platform: 'twitter', username: '@nexus_streamer', color: '#1DA1F2', fontSize: 24, font: 'Inter', opacity: 1 }
+        };
 
-        function loadState() {
-            const saved = localStorage.getItem('nexus_html_save');
+        // --- INIT & UTILS ---
+        function init() {
+            const saved = localStorage.getItem('nexus_pro_save');
             if (saved) {
-                try {
-                    state = JSON.parse(saved);
-                    // Reset selected on load
-                    state.selectedId = null; 
-                } catch (e) { console.error('Save corrupted', e); }
+                try { state = JSON.parse(saved); state.selectedId = null; } 
+                catch (e) { console.error(e); }
             }
+            centerCanvas();
+            renderAll();
+            startClockLoop();
         }
 
         function saveState() {
-            localStorage.setItem('nexus_html_save', JSON.stringify(state));
-            
-            // Visual indicator
-            const ind = document.getElementById('save-status-indicator');
-            const txt = document.getElementById('save-status-text');
-            ind.classList.remove('bg-gray-600');
-            ind.classList.add('bg-green-500', 'animate-pulse');
-            txt.innerText = 'Saving...';
-            
+            localStorage.setItem('nexus_pro_save', JSON.stringify(state));
+            flashSaveIndicator();
+        }
+
+        function flashSaveIndicator() {
+            const dot = document.getElementById('save-dot');
+            dot.classList.remove('bg-green-500'); dot.classList.add('bg-white');
+            setTimeout(() => { dot.classList.remove('bg-white'); dot.classList.add('bg-green-500'); }, 300);
+        }
+
+        function genId() { return 'w_' + Math.random().toString(36).substr(2, 9); }
+
+        function showToast(msg, type='success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const icon = type === 'success' ? '<i class="fa-solid fa-check text-green-400"></i>' : '<i class="fa-solid fa-info-circle text-blue-400"></i>';
+            toast.className = 'toast';
+            toast.innerHTML = `${icon} <span>${msg}</span>`;
+            container.appendChild(toast);
             setTimeout(() => {
-                ind.classList.remove('bg-green-500', 'animate-pulse');
-                ind.classList.add('bg-gray-600');
-                txt.innerText = 'Saved';
-            }, 800);
+                toast.style.animation = 'slideOutRight 0.3s forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
-        function generateId() {
-            return Math.random().toString(36).substr(2, 9);
-        }
-
-        // --- CANVAS SCALING ---
-        function setupCanvasScaling() {
-            const resizeObserver = new ResizeObserver(entries => {
-                for (let entry of entries) {
-                    const rect = entry.contentRect;
-                    scaleFactor = rect.width / CANVAS_WIDTH;
-                    domElements.canvas.style.transform = `scale(${scaleFactor})`;
-                }
-            });
-            resizeObserver.observe(domElements.wrapper);
-            // Initial call
-            scaleFactor = domElements.wrapper.clientWidth / CANVAS_WIDTH;
-            domElements.canvas.style.transform = `scale(${scaleFactor})`;
-        }
-
-        function toggleGrid() {
-            state.showGrid = !state.showGrid;
-            if(state.showGrid) domElements.canvas.classList.add('bg-grid');
-            else domElements.canvas.classList.remove('bg-grid');
-            saveState();
-        }
-
-        // --- WIDGET MANAGEMENT ---
-        function addWidget(type) {
-            const w = {
-                id: 'w_' + generateId(),
-                type: type,
-                x: CANVAS_WIDTH / 2 - 150,
-                y: CANVAS_HEIGHT / 2 - 50,
-                w: 300,
-                h: type === 'goal' ? 120 : type === 'chat' ? 400 : type === 'alert' ? 300 : 100,
-                props: JSON.parse(JSON.stringify(defaultProps[type])) // Deep copy
-            };
-            
-            state.widgets.push(w);
-            state.selectedId = w.id;
-            
-            createWidgetElement(w);
-            renderLayers();
-            updatePropertiesPanel();
-            saveState();
-        }
-
-        function deleteWidget(id) {
-            state.widgets = state.widgets.filter(w => w.id !== id);
-            if(state.selectedId === id) state.selectedId = null;
-            
-            const el = document.getElementById(id);
-            if(el) el.remove();
-            
-            renderLayers();
-            updatePropertiesPanel();
-            saveState();
-        }
-
-        function clearCanvas() {
-            if(confirm("Are you sure you want to delete all elements?")) {
-                state.widgets = [];
-                state.selectedId = null;
-                domElements.canvas.innerHTML = '';
-                renderLayers();
-                updatePropertiesPanel();
-                saveState();
+        // --- CANVAS NAVIGATION (PAN & ZOOM) ---
+        function handleWheel(e) {
+            e.preventDefault();
+            if (e.ctrlKey || e.metaKey) {
+                // Zoom
+                const zoomFactor = 0.05;
+                const delta = e.deltaY < 0 ? 1 : -1;
+                scale = Math.max(0.1, Math.min(3, scale + (delta * zoomFactor)));
+                updateTransform();
+            } else {
+                // Pan
+                panX -= e.deltaX;
+                panY -= e.deltaY;
+                updateTransform();
             }
         }
 
-        function selectWidget(id, event) {
-            if(event) event.stopPropagation();
-            state.selectedId = id;
+        function startPan(e) {
+            if (e.target !== document.getElementById('pan-zoom-container') && e.target !== DOM.wrapper) return;
+            isPanning = true;
+            startPanX = e.clientX - panX;
+            startPanY = e.clientY - panY;
+            document.body.style.cursor = 'grabbing';
             
-            // Update classes
+            const doPan = (e) => {
+                if(!isPanning) return;
+                panX = e.clientX - startPanX;
+                panY = e.clientY - startPanY;
+                updateTransform();
+            };
+            const stopPan = () => {
+                isPanning = false;
+                document.body.style.cursor = 'default';
+                window.removeEventListener('mousemove', doPan);
+                window.removeEventListener('mouseup', stopPan);
+            };
+            window.addEventListener('mousemove', doPan);
+            window.addEventListener('mouseup', stopPan);
+        }
+
+        function updateTransform() {
+            DOM.wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            document.getElementById('zoom-level').innerText = Math.round(scale * 100) + '%';
+        }
+
+        function centerCanvas() {
+            const container = document.getElementById('pan-zoom-container');
+            const containerW = container.clientWidth;
+            const containerH = container.clientHeight;
+            // Fit to screen with padding
+            scale = Math.min((containerW - 100) / CANVAS_W, (containerH - 100) / CANVAS_H);
+            panX = 0; panY = 0;
+            updateTransform();
+        }
+
+        function toggleGrid() {
+            document.getElementById('pan-zoom-container').classList.toggle('bg-dot-grid');
+        }
+
+        // --- WIDGET CRUD ---
+        function addWidget(type) {
+            const w = {
+                id: genId(), type: type,
+                x: (CANVAS_W/2) - 150, y: (CANVAS_H/2) - 100,
+                w: type==='goal'?400 : type==='chat'?350 : type==='webcam'?400 : type==='spotify'?350 : type==='social'?250 : 300,
+                h: type==='goal'?100 : type==='chat'?500 : type==='webcam'?225 : type==='spotify'?100 : type==='social'?60 : 100,
+                props: JSON.parse(JSON.stringify(defaults[type]))
+            };
+            state.widgets.push(w);
+            selectWidget(w.id);
+            renderAll();
+            saveState();
+            showToast(`${type} widget added`);
+        }
+
+        function deleteSelected() {
+            if(!state.selectedId) return;
+            state.widgets = state.widgets.filter(w => w.id !== state.selectedId);
+            const el = document.getElementById(state.selectedId);
+            if(el) el.remove();
+            state.selectedId = null;
+            renderAll();
+            saveState();
+        }
+
+        function selectWidget(id, e) {
+            if(e) e.stopPropagation();
+            state.selectedId = id;
             document.querySelectorAll('.widget-node').forEach(el => el.classList.remove('selected'));
             if(id) {
                 const el = document.getElementById(id);
                 if(el) el.classList.add('selected');
             }
-            
             renderLayers();
-            updatePropertiesPanel();
+            updatePropsUI();
         }
 
-        function setupWorkspaceClick() {
-            domElements.workspace.addEventListener('pointerdown', (e) => {
-                if(e.target === domElements.workspace || e.target === domElements.wrapper || e.target === domElements.canvas) {
-                    selectWidget(null);
-                }
-            });
+        document.getElementById('pan-zoom-container').addEventListener('mousedown', (e) => {
+            if(e.target === document.getElementById('pan-zoom-container') || e.target === DOM.wrapper || e.target === DOM.canvas) {
+                selectWidget(null);
+            }
+        });
+
+        // --- HTML TEMPLATES ---
+        function getWidgetHTML(w) {
+            const p = w.props;
+            const styleBase = `width:100%; height:100%; opacity:${p.opacity};`;
+            
+            if(w.type === 'text') {
+                return `<div class="flex items-center justify-center font-bold text-center break-words" style="${styleBase} color:${p.color}; text-shadow:0 0 ${p.glow}px ${p.color}; font-size:${p.fontSize}px; font-family:${p.font};">${p.text.replace(/\n/g, '<br>')}</div>`;
+            } 
+            if(w.type === 'clock') {
+                return `<div class="clock-val flex items-center justify-center font-bold" style="${styleBase} color:${p.color}; text-shadow:0 0 ${p.glow}px ${p.color}; font-size:${p.fontSize}px; font-family:${p.font};">00:00</div>`;
+            }
+            if(w.type === 'goal') {
+                const pct = Math.min(100, (p.current/p.target)*100);
+                return `
+                <div class="flex flex-col justify-between p-4 border border-white/10" style="${styleBase} background:${p.bgColor}cc; border-radius:${p.borderRadius}px; backdrop-filter:blur(10px); box-shadow:0 0 ${p.glow}px ${p.color}40;">
+                    <div class="flex justify-between font-bold text-lg mb-2" style="color:${p.color}; font-family:'Inter'"><span>${p.title}</span><span>${p.current} / ${p.target}</span></div>
+                    <div class="w-full h-6 bg-black/50 rounded-full overflow-hidden border border-white/5 relative">
+                        <div class="h-full transition-all duration-500 relative" style="width:${pct}%; background:${p.color}; box-shadow:0 0 15px ${p.color}">
+                            <div class="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"></div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            if(w.type === 'chat') {
+                return `
+                <div class="flex flex-col justify-end p-4 overflow-hidden border border-white/10" style="${styleBase} background:${p.bgColor}99; border-radius:${p.borderRadius}px; backdrop-filter:blur(8px); mask-image:linear-gradient(to top, black 70%, transparent 100%); -webkit-mask-image:linear-gradient(to top, black 70%, transparent 100%);">
+                    <div class="mb-2 p-2 rounded bg-black/60 border-l-4 border-[#00e5ff]"><span class="font-bold text-[#00e5ff] mr-2">User1:</span><span class="text-white text-sm">Hello stream!</span></div>
+                    <div class="mb-2 p-2 rounded bg-black/60 border-l-4 border-[#ff0055]"><span class="font-bold text-[#ff0055] mr-2">GamerPro:</span><span class="text-white text-sm">PogChamp play</span></div>
+                    <div class="mb-2 p-2 rounded bg-black/60 border-l-4 border-[#b400ff]"><span class="font-bold text-[#b400ff] mr-2">Mod:</span><span class="text-white text-sm">Welcome everyone!</span></div>
+                </div>`;
+            }
+            if(w.type === 'webcam') {
+                return `
+                <div class="relative" style="${styleBase}">
+                    <div class="rgb-webcam-border" style="border-radius:${p.borderRadius}px"></div>
+                    <div class="absolute inset-0 bg-black/80 flex items-center justify-center border border-white/20" style="border-radius:${p.borderRadius}px">
+                        <i class="fa-solid fa-video-slash text-white/30 text-4xl"></i>
+                    </div>
+                </div>`;
+            }
+            if(w.type === 'spotify') {
+                return `
+                <div class="flex items-center gap-4 p-4 border border-white/10 shadow-2xl" style="${styleBase} background:${p.bgColor}; border-radius:${p.borderRadius}px;">
+                    <div class="w-16 h-16 rounded bg-gradient-to-br from-green-400 to-green-600 animate-pulse flex-shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-white font-bold text-lg truncate font-sans">Cyberpunk Soundtrack</div>
+                        <div class="text-gray-400 text-sm truncate font-sans">Synthwave Artist</div>
+                        <div class="w-full h-1.5 bg-white/20 rounded-full mt-2 overflow-hidden"><div class="h-full bg-green-500 w-1/3"></div></div>
+                    </div>
+                    <i class="fa-brands fa-spotify text-green-500 text-3xl"></i>
+                </div>`;
+            }
+            if(w.type === 'social') {
+                const colors = { twitter: '#1DA1F2', instagram: '#E1306C', youtube: '#FF0000', tiktok: '#00f2fe' };
+                const icons = { twitter: 'fa-twitter', instagram: 'fa-instagram', youtube: 'fa-youtube', tiktok: 'fa-tiktok' };
+                const c = colors[p.platform] || '#fff';
+                return `
+                <div class="flex items-center bg-black/80 rounded-full border border-white/10 overflow-hidden shadow-lg" style="${styleBase}">
+                    <div class="w-12 h-12 flex items-center justify-center" style="background:${c}">
+                        <i class="fa-brands ${icons[p.platform]} text-white text-xl"></i>
+                    </div>
+                    <div class="px-4 text-white font-bold tracking-wide truncate" style="font-size:${p.fontSize}px; font-family:${p.font}; text-shadow: 0 0 10px ${c}80">${p.username}</div>
+                </div>`;
+            }
+            if(w.type === 'alert') {
+                return `
+                <div class="relative flex items-center justify-center" style="${styleBase}">
+                    <div class="absolute inset-0 border-2 border-dashed border-white/20 rounded-xl flex items-center justify-center opacity-50"><span class="text-white/40 text-xs">Alert Area</span></div>
+                    <div id="alert-trigger-${w.id}" class="hidden flex-col items-center">
+                        <div class="w-24 h-24 rounded-full bg-black border-4 mb-4 flex items-center justify-center anim-pulse-soft" style="border-color:${p.color}; box-shadow:0 0 ${p.glow}px ${p.color}">
+                            <i class="fa-solid fa-star text-4xl" style="color:${p.color}"></i>
+                        </div>
+                        <h2 class="text-4xl font-black italic uppercase text-white" style="text-shadow:0 0 20px ${p.color}">NEW FOLLOWER!</h2>
+                    </div>
+                </div>`;
+            }
+            return '';
         }
 
-        // --- RENDERING ---
+        // --- RENDERING & ENGINE ---
         function renderAll() {
-            if(state.showGrid) domElements.canvas.classList.add('bg-grid');
-            else domElements.canvas.classList.remove('bg-grid');
-            
-            domElements.canvas.innerHTML = '';
-            state.widgets.forEach(w => createWidgetElement(w));
-            
+            DOM.canvas.innerHTML = '';
+            state.widgets.forEach(w => createWidgetNode(w));
             if(state.selectedId) selectWidget(state.selectedId);
             renderLayers();
-            updatePropertiesPanel();
+            updatePropsUI();
         }
 
         function renderLayers() {
-            const list = document.getElementById('layer-list');
-            list.innerHTML = '';
-            
-            if(state.widgets.length === 0) {
-                list.innerHTML = `<div class="text-xs text-gray-600 italic text-center py-4">No layers added yet.</div>`;
-                return;
-            }
-
-            // Render in reverse order (top layer first)
-            [...state.widgets].reverse().forEach(w => {
-                const isSelected = w.id === state.selectedId;
-                const iconMap = { text: 'fa-font', clock: 'fa-clock', goal: 'fa-bullseye', chat: 'fa-comments', alert: 'fa-bell' };
-                
+            DOM.layerList.innerHTML = '';
+            const reversed = [...state.widgets].reverse();
+            reversed.forEach(w => {
+                const isSel = w.id === state.selectedId;
                 const div = document.createElement('div');
-                div.className = `flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors border ${isSelected ? 'bg-nexus-cyan/10 border-nexus-cyan/50 text-white' : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10'}`;
+                div.className = `flex items-center justify-between p-2 rounded cursor-pointer text-xs ${isSel ? 'bg-nxs-primary/20 text-white' : 'hover:bg-white/5 text-nxs-muted'}`;
                 div.onclick = (e) => selectWidget(w.id, e);
-                
-                div.innerHTML = `
-                    <span class="text-xs font-semibold capitalize flex items-center gap-3">
-                        <i class="fa-solid ${iconMap[w.type]} w-4 text-center ${isSelected ? 'text-nexus-cyan' : ''}"></i> 
-                        ${w.type}
-                    </span>
-                    <button onclick="deleteWidget('${w.id}'); event.stopPropagation();" class="w-6 h-6 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 flex items-center justify-center transition-colors">
-                        <i class="fa-solid fa-trash-can text-[10px]"></i>
-                    </button>
-                `;
-                list.appendChild(div);
+                div.innerHTML = `<span class="capitalize"><i class="fa-solid fa-layer-group mr-2 opacity-50"></i>${w.type}</span>`;
+                DOM.layerList.appendChild(div);
             });
         }
 
-        function createWidgetElement(w) {
+        function createWidgetNode(w) {
             let el = document.getElementById(w.id);
             if(!el) {
                 el = document.createElement('div');
                 el.id = w.id;
                 el.className = 'widget-node';
-                
-                const content = document.createElement('div');
-                content.className = 'widget-content w-full h-full';
-                el.appendChild(content);
-
-                const handle = document.createElement('div');
-                handle.className = 'resize-handle';
-                el.appendChild(handle);
-
-                domElements.canvas.appendChild(el);
-                
-                // Attach Drag/Resize Events
-                setupDragAndResize(el, w.id);
+                el.innerHTML = `
+                    <div class="widget-inner w-full h-full pointer-events-none"></div>
+                    <div class="resize-handle resize-nw" data-dir="nw"></div>
+                    <div class="resize-handle resize-ne" data-dir="ne"></div>
+                    <div class="resize-handle resize-sw" data-dir="sw"></div>
+                    <div class="resize-handle resize-se" data-dir="se"></div>
+                `;
+                DOM.canvas.appendChild(el);
+                setupInteractions(el, w.id);
             }
-
-            // Update Geometry
-            el.style.left = w.x + 'px';
-            el.style.top = w.y + 'px';
-            el.style.width = w.w + 'px';
-            el.style.height = w.h + 'px';
-            el.style.opacity = w.props.opacity;
-
-            // Update Content HTML
-            const content = el.querySelector('.widget-content');
-            content.innerHTML = getWidgetHTML(w);
+            el.style.left = w.x + 'px'; el.style.top = w.y + 'px';
+            el.style.width = w.w + 'px'; el.style.height = w.h + 'px';
+            el.querySelector('.widget-inner').innerHTML = getWidgetHTML(w);
         }
 
         function updateWidgetDOM(id) {
             const w = state.widgets.find(w => w.id === id);
-            if(w) createWidgetElement(w); // Reuses element, updates properties
+            if(w) createWidgetNode(w);
         }
 
-        // --- WIDGET HTML TEMPLATES ---
-        function getWidgetHTML(w) {
-            const p = w.props;
-            
-            if(w.type === 'text') {
-                return `<div class="flex items-center justify-center w-full h-full font-bold text-center break-words" 
-                             style="color: ${p.color}; text-shadow: 0 0 ${p.glow}px ${p.color}; font-size: ${p.fontSize}px; font-family: ${p.font};">
-                            ${p.text.replace(/\n/g, '<br/>')}
-                        </div>`;
-            } 
-            
-            else if(w.type === 'clock') {
-                return `<div class="clock-widget flex items-center justify-center w-full h-full font-bold tracking-wider" 
-                             style="color: ${p.color}; text-shadow: 0 0 ${p.glow}px ${p.color}; font-size: ${p.fontSize || 60}px; font-family: ${p.font};">
-                            00:00:00
-                        </div>`;
-            }
-            
-            else if(w.type === 'goal') {
-                const percent = Math.min(100, Math.max(0, (p.current / p.target) * 100));
-                return `
-                    <div class="flex flex-col w-full h-full p-5 justify-between bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl" 
-                         style="box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 ${p.glow}px ${p.color}20">
-                        <div class="flex justify-between font-bold text-xl mb-3" style="color: ${p.color}; text-shadow: 0 0 10px ${p.color}80; font-family: 'Inter'">
-                            <span class="tracking-wide uppercase">${p.title}</span>
-                            <span>${p.current} / ${p.target}</span>
-                        </div>
-                        <div class="w-full h-8 bg-gray-900 rounded-full overflow-hidden border border-gray-700 relative shadow-inner">
-                            <div class="h-full transition-all duration-1000 ease-out relative flex items-center justify-end px-2"
-                                 style="width: ${percent}%; background-color: ${p.color}; box-shadow: 0 0 20px ${p.color}">
-                                 <div class="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"></div>
-                            </div>
-                        </div>
-                    </div>`;
-            }
+        // --- DRAG & RESIZE ENGINE ---
+        function setupInteractions(el, id) {
+            let mode = null; // 'drag' | 'nw' | 'ne' | 'sw' | 'se'
+            let startX, startY, initX, initY, initW, initH;
 
-            else if(w.type === 'chat') {
-                const chats = [
-                    { u: 'NexusFan', m: 'This stream is fire! 🔥' },
-                    { u: 'ProGamer', m: 'Nice play man' },
-                    { u: 'Kitten123', m: 'pogchamp' }
-                ];
-                let chatHtml = chats.map((c, i) => `
-                    <div class="mb-3 p-3 rounded-xl bg-black/60 backdrop-blur-md border-l-4" style="border-color: ${p.color}">
-                        <span class="font-bold mr-2" style="color: ${p.color}; text-shadow: 0 0 5px ${p.color}">${c.u}</span>
-                        <span class="text-white drop-shadow font-medium text-sm">${c.m}</span>
-                    </div>
-                `).join('');
-
-                return `
-                    <div class="flex flex-col justify-end w-full h-full p-2 overflow-hidden" 
-                         style="mask-image: linear-gradient(to top, black 60%, transparent 100%); -webkit-mask-image: linear-gradient(to top, black 60%, transparent 100%); font-family:'Inter'">
-                        ${chatHtml}
-                    </div>`;
-            }
-
-            else if(w.type === 'alert') {
-                return `
-                    <div class="flex flex-col items-center justify-center w-full h-full relative font-sans">
-                        <div class="alert-placeholder absolute inset-0 border-2 border-dashed rounded-2xl flex items-center justify-center" style="border-color: ${p.color}40; background: ${p.color}05;">
-                            <span class="text-xs uppercase tracking-widest font-bold" style="color: ${p.color}80"><i class="fa-solid fa-bell mr-2"></i> Alert Area</span>
-                        </div>
-                        <div id="alert-anim-${w.id}" class="hidden flex-col items-center absolute">
-                            <div class="w-24 h-24 mb-6 rounded-full flex items-center justify-center bg-black border-4 shadow-2xl relative" style="border-color: ${p.color}; box-shadow: 0 0 ${p.glow}px ${p.color}">
-                                <i class="fa-solid fa-star text-4xl" style="color: ${p.color}"></i>
-                                <div class="absolute inset-0 rounded-full animate-ping opacity-50" style="background: ${p.color}"></div>
-                            </div>
-                            <h2 class="text-4xl font-black italic tracking-widest text-center uppercase" style="color: #fff; text-shadow: 0 0 10px ${p.color}, 0 0 30px ${p.color}">
-                                <span style="color: ${p.color}">NEW FOLLOWER!</span><br/>
-                                <span class="text-2xl mt-2 block opacity-90">AWESOME_USER</span>
-                            </h2>
-                        </div>
-                    </div>`;
-            }
-            return '';
-        }
-
-        function setupDragAndResize(el, id) {
-            let isDragging = false;
-            let isResizing = false;
-            let startX, startY, initialX, initialY, initialW, initialH;
-
-            const handle = el.querySelector('.resize-handle');
-
-            // --- DRAG ---
-            el.addEventListener('pointerdown', (e) => {
-                if(e.target === handle || document.body.classList.contains('obs-mode')) return;
+            el.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 selectWidget(id);
-                
-                isDragging = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                
-                const w = state.widgets.find(w => w.id === id);
-                initialX = w.x;
-                initialY = w.y;
-                
-                el.setPointerCapture(e.pointerId);
-            });
-
-            el.addEventListener('pointermove', (e) => {
-                if(!isDragging) return;
-                
-                // Calculate movement considering scale factor
-                const dx = (e.clientX - startX) / scaleFactor;
-                const dy = (e.clientY - startY) / scaleFactor;
-                
-                let newX = initialX + dx;
-                let newY = initialY + dy;
-                
-                // Snap to grid lightly
-                if(state.showGrid) {
-                    if(Math.abs(newX % 40) < 5) newX = Math.round(newX / 40) * 40;
-                    if(Math.abs(newY % 40) < 5) newY = Math.round(newY / 40) * 40;
+                if(e.target.classList.contains('resize-handle')) {
+                    mode = e.target.getAttribute('data-dir');
+                } else {
+                    mode = 'drag';
                 }
-
-                // Direct DOM update for performance
-                el.style.left = newX + 'px';
-                el.style.top = newY + 'px';
-            });
-
-            el.addEventListener('pointerup', (e) => {
-                if(!isDragging) return;
-                isDragging = false;
-                el.releasePointerCapture(e.pointerId);
                 
-                // Sync state and save
+                startX = e.clientX; startY = e.clientY;
                 const w = state.widgets.find(w => w.id === id);
-                w.x = parseFloat(el.style.left);
-                w.y = parseFloat(el.style.top);
-                updatePropertiesPanel(); // update text boxes
-                saveState();
-            });
+                initX = w.x; initY = w.y; initW = w.w; initH = w.h;
+                
+                const onMove = (ev) => {
+                    if(!mode) return;
+                    const dx = (ev.clientX - startX) / scale;
+                    const dy = (ev.clientY - startY) / scale;
+                    const wObj = state.widgets.find(w => w.id === id);
 
-            // --- RESIZE ---
-            handle.addEventListener('pointerdown', (e) => {
-                e.stopPropagation();
-                selectWidget(id);
+                    if(mode === 'drag') {
+                        wObj.x = initX + dx; wObj.y = initY + dy;
+                    } else {
+                        // Resizing
+                        if(mode.includes('e')) wObj.w = Math.max(50, initW + dx);
+                        if(mode.includes('s')) wObj.h = Math.max(50, initH + dy);
+                        if(mode.includes('w')) {
+                            const newW = Math.max(50, initW - dx);
+                            if(newW > 50) { wObj.x = initX + dx; wObj.w = newW; }
+                        }
+                        if(mode.includes('n')) {
+                            const newH = Math.max(50, initH - dy);
+                            if(newH > 50) { wObj.y = initY + dy; wObj.h = newH; }
+                        }
+                    }
+                    
+                    // Direct DOM update for 60fps feel
+                    el.style.left = wObj.x + 'px'; el.style.top = wObj.y + 'px';
+                    el.style.width = wObj.w + 'px'; el.style.height = wObj.h + 'px';
+                };
                 
-                isResizing = true;
-                startX = e.clientX;
-                startY = e.clientY;
+                const onUp = () => {
+                    mode = null;
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onUp);
+                    updatePropsUI();
+                    saveState();
+                };
                 
-                const w = state.widgets.find(w => w.id === id);
-                initialW = w.w;
-                initialH = w.h;
-                
-                handle.setPointerCapture(e.pointerId);
-            });
-
-            handle.addEventListener('pointermove', (e) => {
-                if(!isResizing) return;
-                
-                const dx = (e.clientX - startX) / scaleFactor;
-                const dy = (e.clientY - startY) / scaleFactor;
-                
-                const newW = Math.max(50, initialW + dx);
-                const newH = Math.max(50, initialH + dy);
-                
-                el.style.width = newW + 'px';
-                el.style.height = newH + 'px';
-            });
-
-            handle.addEventListener('pointerup', (e) => {
-                if(!isResizing) return;
-                isResizing = false;
-                handle.releasePointerCapture(e.pointerId);
-                
-                const w = state.widgets.find(w => w.id === id);
-                w.w = parseFloat(el.style.width);
-                w.h = parseFloat(el.style.height);
-                updatePropertiesPanel();
-                saveState();
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
             });
         }
 
-        function updatePropertiesPanel() {
-            const emptyState = document.getElementById('prop-empty-state');
-            const form = document.getElementById('prop-form');
-            
+        // --- PROPERTIES PANEL UI ---
+        function switchPropTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-design').classList.add('hidden');
+            document.getElementById('tab-data').classList.add('hidden');
+            document.getElementById('tab-'+tab).classList.remove('hidden');
+        }
+
+        function updatePropsUI() {
             if(!state.selectedId) {
-                emptyState.classList.remove('hidden');
-                form.classList.add('hidden');
+                DOM.propEmpty.classList.remove('hidden');
+                DOM.propPanel.classList.add('hidden');
                 return;
             }
-
             const w = state.widgets.find(w => w.id === state.selectedId);
             if(!w) return;
 
-            emptyState.classList.add('hidden');
-            form.classList.remove('hidden');
+            DOM.propEmpty.classList.add('hidden');
+            DOM.propPanel.classList.remove('hidden');
 
-            // Populate Transform
+            // Layout
             document.getElementById('prop-x').value = Math.round(w.x);
             document.getElementById('prop-y').value = Math.round(w.y);
             document.getElementById('prop-w').value = Math.round(w.w);
             document.getElementById('prop-h').value = Math.round(w.h);
 
-            // Populate Appearance (Common)
+            // Hide all prop groups first
+            const groups = ['color', 'bg', 'glow', 'radius', 'typography', 'fontsize'];
+            groups.forEach(g => document.getElementById(`prop-${g}-group`)?.classList.add('hidden'));
+            
+            const dataGroups = ['text', 'goal', 'social', 'alert'];
+            dataGroups.forEach(g => document.getElementById(`data-${g}`)?.classList.add('hidden'));
+
+            // Opacity (always visible)
+            document.getElementById('prop-opacity').value = w.props.opacity;
+            document.getElementById('val-opacity').innerText = Math.round(w.props.opacity*100)+'%';
+
+            // Conditional Design Props
             if(w.props.color !== undefined) {
-                document.getElementById('prop-group-color').classList.remove('hidden');
+                document.getElementById('prop-color-group').classList.remove('hidden');
                 document.getElementById('prop-color').value = w.props.color;
                 document.getElementById('prop-color-hex').value = w.props.color;
-            } else {
-                document.getElementById('prop-group-color').classList.add('hidden');
             }
-
+            if(w.props.bgColor !== undefined) {
+                document.getElementById('prop-bg-group').classList.remove('hidden');
+                document.getElementById('prop-bg').value = w.props.bgColor.substring(0,7);
+            }
             if(w.props.glow !== undefined) {
-                document.getElementById('prop-group-glow').classList.remove('hidden');
+                document.getElementById('prop-glow-group').classList.remove('hidden');
                 document.getElementById('prop-glow').value = w.props.glow;
-                document.getElementById('glow-val').innerText = w.props.glow + 'px';
-            } else {
-                document.getElementById('prop-group-glow').classList.add('hidden');
+                document.getElementById('val-glow').innerText = w.props.glow+'px';
             }
-            
-            document.getElementById('prop-opacity').value = w.props.opacity || 1;
-            document.getElementById('opacity-val').innerText = Math.round((w.props.opacity || 1) * 100) + '%';
-
-            // Reset Groups
-            ['typography', 'text', 'fontsize', 'goal', 'alert'].forEach(id => {
-                document.getElementById('prop-group-' + id).classList.add('hidden');
-            });
-
-            // Populate Specifics
-            if(w.type === 'text' || w.type === 'clock') {
-                document.getElementById('prop-group-typography').classList.remove('hidden');
-                document.getElementById('prop-font').value = w.props.font || 'Inter';
-                
-                if(w.type === 'text') {
-                    document.getElementById('prop-group-text').classList.remove('hidden');
-                    document.getElementById('prop-text').value = w.props.text;
-                }
-                
+            if(w.props.borderRadius !== undefined) {
+                document.getElementById('prop-radius-group').classList.remove('hidden');
+                document.getElementById('prop-radius').value = w.props.borderRadius;
+                document.getElementById('val-radius').innerText = w.props.borderRadius+'px';
+            }
+            if(w.props.font !== undefined) {
+                document.getElementById('prop-typography').classList.remove('hidden');
+                document.getElementById('prop-font').value = w.props.font;
                 if(w.props.fontSize !== undefined) {
-                    document.getElementById('prop-group-fontsize').classList.remove('hidden');
+                    document.getElementById('prop-fontsize-group').classList.remove('hidden');
                     document.getElementById('prop-fontsize').value = w.props.fontSize;
-                    document.getElementById('fontsize-val').innerText = w.props.fontSize + 'px';
+                    document.getElementById('val-fontsize').innerText = w.props.fontSize+'px';
                 }
             }
-            else if(w.type === 'goal') {
-                document.getElementById('prop-group-goal').classList.remove('hidden');
+
+            // Conditional Data Props
+            if(w.type === 'text') {
+                document.getElementById('data-text').classList.remove('hidden');
+                document.getElementById('prop-text').value = w.props.text;
+            }
+            if(w.type === 'goal') {
+                document.getElementById('data-goal').classList.remove('hidden');
                 document.getElementById('prop-title').value = w.props.title;
                 document.getElementById('prop-current').value = w.props.current;
                 document.getElementById('prop-target').value = w.props.target;
             }
-            else if(w.type === 'alert') {
-                document.getElementById('prop-group-alert').classList.remove('hidden');
+            if(w.type === 'social') {
+                document.getElementById('data-social').classList.remove('hidden');
+                document.getElementById('prop-platform').value = w.props.platform;
+                document.getElementById('prop-username').value = w.props.username;
+            }
+            if(w.type === 'alert') {
+                document.getElementById('data-alert').classList.remove('hidden');
             }
         }
 
-        // Called by input elements in the form
         function updateSelected(key, val) {
             if(!state.selectedId) return;
-            const w = state.widgets.find(w => w.id === state.selectedId);
-            w[key] = parseFloat(val);
-            updateWidgetDOM(w.id);
+            state.widgets.find(w => w.id === state.selectedId)[key] = parseFloat(val);
+            updateWidgetDOM(state.selectedId);
             saveState();
         }
 
         function updateSelectedProp(key, val) {
             if(!state.selectedId) return;
-            const w = state.widgets.find(w => w.id === state.selectedId);
+            const numKeys = ['glow', 'fontSize', 'opacity', 'borderRadius', 'current', 'target'];
+            if(numKeys.includes(key)) val = parseFloat(val);
             
-            // Parse numbers if needed
-            if(['glow', 'fontSize', 'current', 'target', 'opacity'].includes(key)) val = parseFloat(val);
-            
-            w.props[key] = val;
-            updateWidgetDOM(w.id);
+            state.widgets.find(w => w.id === state.selectedId).props[key] = val;
+            updateWidgetDOM(state.selectedId);
             saveState();
         }
 
-        // --- SPECIAL FUNCTIONS ---
+        // --- SPECIFIC FEATURES ---
         function triggerAlert() {
             if(!state.selectedId) return;
-            const animDiv = document.getElementById(`alert-anim-${state.selectedId}`);
-            if(animDiv) {
-                animDiv.classList.remove('hidden');
-                animDiv.classList.add('animate-alert');
-                
-                // Hide placeholder during test
-                const parent = animDiv.parentElement;
-                const ph = parent.querySelector('.alert-placeholder');
-                if(ph) ph.style.opacity = '0';
-
+            const anim = document.getElementById(`alert-trigger-${state.selectedId}`);
+            if(anim) {
+                anim.classList.remove('hidden');
+                anim.classList.add('flex');
                 setTimeout(() => {
-                    animDiv.classList.add('hidden');
-                    animDiv.classList.remove('animate-alert');
-                    if(ph) ph.style.opacity = '1';
+                    anim.classList.add('hidden');
+                    anim.classList.remove('flex');
                 }, 4000);
             }
         }
 
         function startClockLoop() {
             setInterval(() => {
-                const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-                document.querySelectorAll('.clock-widget').forEach(el => {
-                    el.innerText = now;
-                });
+                const now = new Date();
+                const str = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+                document.querySelectorAll('.clock-val').forEach(el => el.innerText = str);
             }, 1000);
         }
 
-        function enterObsMode() {
-            selectWidget(null); // deselect all
-            document.body.classList.add('obs-mode');
-            document.getElementById('obs-exit-btn').classList.remove('hidden');
+        function simulateAIGeneration() {
+            const btn = event.target;
+            const input = document.getElementById('ai-prompt').value;
+            if(!input) return showToast('Please enter a prompt', 'info');
+            
+            btn.innerText = 'Thinking...';
+            setTimeout(() => {
+                state.widgets = [];
+                // Add Cyberpunk theme defaults
+                addWidget('webcam');
+                addWidget('social');
+                addWidget('goal');
+                
+                // Customize them via code to simulate AI
+                state.widgets[0].x = 50; state.widgets[0].y = 50; // webcam
+                state.widgets[1].x = 50; state.widgets[1].y = 300; state.widgets[1].props.color = '#00e5ff'; // social
+                state.widgets[2].x = 50; state.widgets[2].y = 950; state.widgets[2].props.color = '#ff0055'; // goal
+                
+                renderAll();
+                saveState();
+                btn.innerText = 'Generate';
+                document.getElementById('ai-prompt').value = '';
+                showToast('Cyberpunk layout generated successfully!');
+                centerCanvas();
+            }, 1500);
         }
 
-        function exitObsMode() {
-            document.body.classList.remove('obs-mode');
-            document.getElementById('obs-exit-btn').classList.add('hidden');
-            setupCanvasScaling(); // recalculate scale
+        // --- OBS MODAL ---
+        function openObsModal() {
+            const m = document.getElementById('obs-modal');
+            const mc = document.getElementById('obs-modal-content');
+            m.classList.remove('hidden');
+            // Animate in
+            requestAnimationFrame(() => {
+                m.classList.remove('opacity-0');
+                mc.classList.remove('scale-95');
+            });
         }
 
-        // --- START APP ---
+        function closeObsModal() {
+            const m = document.getElementById('obs-modal');
+            const mc = document.getElementById('obs-modal-content');
+            m.classList.add('opacity-0');
+            mc.classList.add('scale-95');
+            setTimeout(() => m.classList.add('hidden'), 200);
+        }
+
+        function copyToClipboard(id) {
+            const text = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('URL Copied to clipboard!');
+            });
+        }
+
+        // Boot
         window.onload = init;
-
     </script>
 </body>
 </html>
