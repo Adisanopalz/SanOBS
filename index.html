@@ -20,10 +20,10 @@
             background-image: none !important;
         }
 
-        /* Tampilan Overlay Element */
         .obs-widget {
             position: absolute;
             filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+            z-index: 10;
         }
 
         .glass-panel-overlay {
@@ -62,9 +62,9 @@
         
         /* Animasi Angka Berubah */
         @keyframes popNumber {
-            0% { transform: scale(1); color: #f472b6; }
-            50% { transform: scale(1.3); color: #fff; text-shadow: 0 0 10px #fff; }
-            100% { transform: scale(1); color: #f472b6; }
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.3); filter: brightness(1.5); text-shadow: 0 0 10px currentColor; }
+            100% { transform: scale(1); filter: brightness(1); }
         }
         .pop-anim { animation: popNumber 0.5s ease; }
 
@@ -97,28 +97,61 @@
             0% { transform: translate(0, 0); }
             100% { transform: translate(-100%, 0); }
         }
+
+        /* Canvas Particle Effects */
+        #fxCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1; /* Di bawah widget, di atas background OBS */
+        }
     </style>
 </head>
-<!-- Latar Belakang Default untuk Dashboard -->
 <body class="bg-gray-900 text-gray-100 min-h-screen relative" id="mainBody">
 
-    <!-- ========================================== -->
     <!-- BAGIAN 1: DASHBOARD (Hanya tampil di Browser Biasa) -->
-    <!-- ========================================== -->
-    <div id="dashboard" class="p-8 max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
+    <div id="dashboard" class="p-8 max-w-6xl mx-auto flex flex-col md:flex-row gap-8 overflow-y-auto max-h-screen pb-20">
         
         <!-- Kolom Form -->
         <div class="flex-1 bg-gray-800 p-6 rounded-2xl shadow-2xl border border-gray-700">
             <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500 mb-2">
-                <i class="fas fa-magic mr-2 text-pink-500"></i>Overlay Generator
+                <i class="fas fa-magic mr-2 text-pink-500"></i>Overlay Generator Pro
             </h1>
-            <p class="text-gray-400 mb-6 text-sm">Isi data di bawah, lalu Copy Link untuk dimasukkan ke OBS Browser Source.</p>
+            <p class="text-gray-400 mb-6 text-sm">Sesuaikan gaya stream-mu, lalu Copy Link untuk OBS Browser Source.</p>
 
             <div class="space-y-4">
+                
+                <!-- Estetika & Visual -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-palette mr-2 text-blue-400"></i>Estetika & Tampilan</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Tema Warna Widget</label>
+                            <select id="inTheme" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <option value="pink">Pink / Purple (Default)</option>
+                                <option value="blue">Blue / Cyan</option>
+                                <option value="green">Green / Emerald</option>
+                                <option value="red">Red / Orange</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Efek Layar (Particle)</label>
+                            <select id="inParticles" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <option value="none">Tanpa Efek</option>
+                                <option value="snow">Salju Turun</option>
+                                <option value="stars">Bintang Melayang</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Sosial Media -->
                 <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
-                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-users mr-2"></i>Sosial Media</h3>
-                    <div class="grid grid-cols-2 gap-4">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-users mr-2 text-purple-400"></i>Sosial Media</h3>
+                    <div class="grid grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">YouTube Name</label>
                             <input type="text" id="inYt" value="MyChannel" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
@@ -137,10 +170,10 @@
                 <!-- Goal / Live Subs Setting -->
                 <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
                     <div class="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
-                        <h3 class="font-bold text-lg"><i class="fas fa-bullseye mr-2"></i>Goal / Widget Kanan</h3>
+                        <h3 class="font-bold text-lg"><i class="fas fa-bullseye mr-2 text-red-400"></i>Widget Target</h3>
                         <select id="inModeWidget" class="bg-gray-800 text-sm border border-gray-600 rounded p-1" onchange="toggleWidgetMode()">
                             <option value="goal">Target Goal (Progress Bar)</option>
-                            <option value="live">Live Subscriber Count (YouTube)</option>
+                            <option value="live">Live Subscriber Count</option>
                         </select>
                     </div>
 
@@ -170,20 +203,24 @@
                             <i class="fas fa-info-circle mr-1"></i> Biarkan kosong jika tidak punya API Key untuk melihat Demo Mode.
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">YouTube Channel ID (Contoh: UCxxx...)</label>
+                            <label class="block text-xs text-gray-400 mb-1">YouTube Channel ID (Berawalan UC...)</label>
                             <input type="text" id="inYtId" placeholder="UC..." class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Google API Key (YouTube Data v3)</label>
+                            <label class="block text-xs text-gray-400 mb-1">Google API Key</label>
                             <input type="password" id="inApiKey" placeholder="AIzaSy..." class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600">
                         </div>
                     </div>
                 </div>
 
-                <!-- Ekstra: Running Text & Alert -->
+                <!-- Ekstra: Running Text, Jam & Alert -->
                 <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
-                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-star mr-2"></i>Ekstra Fitur</h3>
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-star mr-2 text-yellow-400"></i>Ekstra Fitur</h3>
                     <div class="space-y-3">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inShowClock" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                            <label class="text-sm font-semibold text-gray-200">Tampilkan Jam Digital di Layar</label>
+                        </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Running Text (Kosongkan jika tidak mau)</label>
                             <input type="text" id="inMarquee" value="Selamat datang di stream! Jangan lupa like & subscribe ya kawan-kawan~" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500">
@@ -195,15 +232,15 @@
                     </div>
                 </div>
 
-                <button onclick="generateLink()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-pink-500/20">
+                <button onclick="generateLink()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-pink-500/20 text-lg">
                     <i class="fas fa-link mr-2"></i> Generate & Update Preview
                 </button>
 
                 <div id="resultContainer" class="hidden mt-4 p-4 border-2 border-green-500/50 bg-green-900/20 rounded-xl">
                     <p class="text-sm text-green-400 mb-2 font-semibold">Berhasil! Copy link ini ke OBS Browser Source:</p>
                     <div class="flex">
-                        <input type="text" id="outUrl" readonly class="flex-1 bg-gray-900 p-2 rounded-l text-xs border border-green-700/50 text-gray-300">
-                        <button onclick="copyLink()" class="bg-green-600 hover:bg-green-500 px-4 rounded-r font-bold text-sm">Copy</button>
+                        <input type="text" id="outUrl" readonly class="flex-1 bg-gray-900 p-2 rounded-l text-xs border border-green-700/50 text-gray-300 focus:outline-none">
+                        <button onclick="copyLink()" class="bg-green-600 hover:bg-green-500 px-4 rounded-r font-bold text-sm transition-colors">Copy</button>
                     </div>
                 </div>
             </div>
@@ -211,43 +248,56 @@
 
         <!-- Kolom Preview -->
         <div class="w-full md:w-[600px] flex flex-col">
-            <h2 class="text-xl font-bold mb-4"><i class="fas fa-desktop mr-2"></i>Live Preview</h2>
-            <!-- Frame Preview (Simulasi Game) -->
-            <div class="relative w-full aspect-video bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 shadow-2xl" style="background-image: url('https://placehold.co/1280x720/1a1a2e/2a2a4e?text=SIMULASI+GAMEPLAY'); background-size: cover;">
-                <!-- Kontainer Iframe Preview -->
-                <iframe id="previewFrame" class="absolute inset-0 w-full h-full pointer-events-none" src=""></iframe>
+            <div class="sticky top-8">
+                <h2 class="text-xl font-bold mb-4 flex items-center justify-between">
+                    <span><i class="fas fa-desktop mr-2"></i>Live Preview</span>
+                    <span class="text-xs bg-red-600 text-white px-2 py-1 rounded animate-pulse">LIVE VIEW</span>
+                </h2>
+                <!-- Frame Preview -->
+                <div class="relative w-full aspect-video bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 shadow-2xl" style="background-image: url('https://placehold.co/1280x720/1a1a2e/2a2a4e?text=SIMULASI+GAMEPLAY'); background-size: cover;">
+                    <iframe id="previewFrame" class="absolute inset-0 w-full h-full pointer-events-none" src=""></iframe>
+                </div>
+                <p class="text-xs text-gray-400 mt-3 text-center bg-gray-800 p-2 rounded-lg border border-gray-700">Tampilan di atas merepresentasikan dimensi asli 16:9 saat dimasukkan ke OBS.</p>
             </div>
-            <p class="text-xs text-gray-500 mt-2 text-center">Tampilan di atas adalah simulasi saat dimasukkan ke OBS.</p>
         </div>
     </div>
 
 
-    <!-- ========================================== -->
     <!-- BAGIAN 2: OVERLAY VISUAL (Tampil di OBS) -->
-    <!-- ========================================== -->
     <div id="overlayScreen" class="hidden w-full h-screen relative">
         
+        <!-- Canvas untuk Efek Partikel -->
+        <canvas id="fxCanvas"></canvas>
+
         <!-- Running Text (Marquee) -->
         <div id="marqueeWrapper" class="marquee-container hidden">
             <div id="outMarquee" class="marquee-text font-poppins text-lg"></div>
         </div>
 
+        <!-- JAM DIGITAL (Kanan Atas) -->
+        <div id="clockWidget" class="obs-widget top-10 right-8 hidden">
+            <div class="glass-panel-overlay px-4 py-2 flex items-center gap-2 theme-border shadow-lg">
+                <i class="far fa-clock theme-text text-xl"></i>
+                <span id="clockText" class="font-poppins font-bold text-2xl text-white tracking-widest">00:00:00</span>
+            </div>
+        </div>
+
         <!-- ALERT BOX (Tengah Atas) -->
-        <div class="obs-widget w-full flex justify-center mt-24">
-            <div id="alertBox" class="hidden glass-panel-overlay px-6 py-3 flex items-center gap-4 bg-gradient-to-r from-pink-600/90 to-purple-600/90 shadow-2xl shadow-pink-500/20">
-                <div id="alertIcon" class="bg-white text-pink-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-inner">
+        <div class="obs-widget w-full flex justify-center mt-28">
+            <div id="alertBox" class="hidden glass-panel-overlay px-6 py-3 flex items-center gap-4 theme-gradient shadow-2xl theme-shadow">
+                <div id="alertIcon" class="bg-white text-gray-900 rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-inner">
                     <i class="fab fa-youtube"></i>
                 </div>
                 <div>
                     <div id="alertName" class="font-extrabold text-2xl font-poppins text-white tracking-wide">UserName</div>
-                    <div id="alertDesc" class="text-pink-100 text-sm font-semibold">Baru saja Subscribe!</div>
+                    <div id="alertDesc" class="text-white/80 text-sm font-semibold">Baru saja Subscribe!</div>
                 </div>
             </div>
         </div>
 
         <!-- SOCIAL MEDIA ROTATOR (Kiri Bawah) -->
         <div class="obs-widget bottom-8 left-8">
-            <div class="glass-panel-overlay p-1 flex items-center gap-2 overflow-hidden w-[250px] h-[50px]">
+            <div class="glass-panel-overlay p-1 flex items-center gap-2 overflow-hidden w-[250px] h-[50px] theme-border shadow-lg">
                 <div id="socIcon" class="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center text-xl transition-all duration-500">
                     <i class="fab fa-youtube text-white"></i>
                 </div>
@@ -259,12 +309,12 @@
 
         <!-- GOAL / LIVE STATS BAR (Kanan Bawah) -->
         <div class="obs-widget bottom-8 right-8">
-            <div class="glass-panel-overlay p-3 w-[300px]">
+            <div class="glass-panel-overlay p-3 w-[300px] theme-border shadow-lg">
                 <!-- Header: Judul & Angka -->
                 <div class="flex justify-between items-end mb-2">
                     <span id="outGoalTitle" class="text-xs font-bold text-gray-400 uppercase tracking-wider">Sub Goal</span>
                     <div class="font-poppins font-bold text-lg">
-                        <span id="outGoalCurrent" class="text-pink-400 transition-all duration-300 inline-block">150</span>
+                        <span id="outGoalCurrent" class="theme-text transition-all duration-300 inline-block">150</span>
                         <span id="goalSlash" class="text-gray-500 mx-1">/</span>
                         <span id="outGoalTarget" class="text-gray-300">500</span>
                     </div>
@@ -272,9 +322,9 @@
                 
                 <!-- Bar Container -->
                 <div id="goalBarContainer" class="w-full bg-gray-900 rounded-full h-3 shadow-inner overflow-hidden border border-gray-800">
-                    <div id="outGoalBar" class="bg-gradient-to-r from-pink-500 to-purple-500 h-full rounded-full progress-fill relative" style="width: 30%;">
+                    <div id="outGoalBar" class="theme-gradient h-full rounded-full progress-fill relative" style="width: 30%;">
                         <!-- Efek cahaya di ujung bar -->
-                        <div class="absolute right-0 top-0 bottom-0 w-4 bg-white/30 blur-[2px]"></div>
+                        <div class="absolute right-0 top-0 bottom-0 w-4 bg-white/40 blur-[2px]"></div>
                     </div>
                 </div>
             </div>
@@ -282,46 +332,58 @@
 
     </div>
 
-    <!-- ========================================== -->
-    <!-- LOGIKA JAVASCRIPT -->
-    <!-- ========================================== -->
     <script>
-        // --- LOGIKA DASHBOARD ---
-
-        // Load data dari LocalStorage saat pertama kali buka
-        function loadData() {
-            if(localStorage.getItem('inYt')) document.getElementById('inYt').value = localStorage.getItem('inYt');
-            if(localStorage.getItem('inIg')) document.getElementById('inIg').value = localStorage.getItem('inIg');
-            if(localStorage.getItem('inTt')) document.getElementById('inTt').value = localStorage.getItem('inTt');
-            if(localStorage.getItem('inModeWidget')) {
-                document.getElementById('inModeWidget').value = localStorage.getItem('inModeWidget');
-                toggleWidgetMode();
+        // --- DEKLARASI TEMA WARNA ---
+        const themeConfig = {
+            pink: {
+                gradient: ['from-pink-600', 'to-purple-600'],
+                text: 'text-pink-400',
+                border: 'border-pink-500/30',
+                shadow: 'shadow-pink-500/30'
+            },
+            blue: {
+                gradient: ['from-blue-600', 'to-cyan-600'],
+                text: 'text-cyan-400',
+                border: 'border-cyan-500/30',
+                shadow: 'shadow-cyan-500/30'
+            },
+            green: {
+                gradient: ['from-green-600', 'to-emerald-600'],
+                text: 'text-emerald-400',
+                border: 'border-emerald-500/30',
+                shadow: 'shadow-emerald-500/30'
+            },
+            red: {
+                gradient: ['from-red-600', 'to-orange-600'],
+                text: 'text-orange-400',
+                border: 'border-orange-500/30',
+                shadow: 'shadow-orange-500/30'
             }
-            if(localStorage.getItem('inGoalTitle')) document.getElementById('inGoalTitle').value = localStorage.getItem('inGoalTitle');
-            if(localStorage.getItem('inGoalCurrent')) document.getElementById('inGoalCurrent').value = localStorage.getItem('inGoalCurrent');
-            if(localStorage.getItem('inGoalTarget')) document.getElementById('inGoalTarget').value = localStorage.getItem('inGoalTarget');
-            if(localStorage.getItem('inYtId')) document.getElementById('inYtId').value = localStorage.getItem('inYtId');
-            if(localStorage.getItem('inApiKey')) document.getElementById('inApiKey').value = localStorage.getItem('inApiKey');
-            if(localStorage.getItem('inMarquee')) document.getElementById('inMarquee').value = localStorage.getItem('inMarquee');
-            if(localStorage.getItem('inAlertMsg')) document.getElementById('inAlertMsg').value = localStorage.getItem('inAlertMsg');
+        };
+
+        // --- LOGIKA DASHBOARD (LOAD & SAVE) ---
+        function loadData() {
+            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles'];
+            fields.forEach(field => {
+                if(localStorage.getItem(field)) document.getElementById(field).value = localStorage.getItem(field);
+            });
+            
+            // Checkbox khusus
+            if(localStorage.getItem('inShowClock') !== null) {
+                document.getElementById('inShowClock').checked = localStorage.getItem('inShowClock') === 'true';
+            }
+
+            toggleWidgetMode();
         }
 
-        // Simpan data ke LocalStorage
         function saveData() {
-            localStorage.setItem('inYt', document.getElementById('inYt').value);
-            localStorage.setItem('inIg', document.getElementById('inIg').value);
-            localStorage.setItem('inTt', document.getElementById('inTt').value);
-            localStorage.setItem('inModeWidget', document.getElementById('inModeWidget').value);
-            localStorage.setItem('inGoalTitle', document.getElementById('inGoalTitle').value);
-            localStorage.setItem('inGoalCurrent', document.getElementById('inGoalCurrent').value);
-            localStorage.setItem('inGoalTarget', document.getElementById('inGoalTarget').value);
-            localStorage.setItem('inYtId', document.getElementById('inYtId').value);
-            localStorage.setItem('inApiKey', document.getElementById('inApiKey').value);
-            localStorage.setItem('inMarquee', document.getElementById('inMarquee').value);
-            localStorage.setItem('inAlertMsg', document.getElementById('inAlertMsg').value);
+            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles'];
+            fields.forEach(field => {
+                localStorage.setItem(field, document.getElementById(field).value);
+            });
+            localStorage.setItem('inShowClock', document.getElementById('inShowClock').checked);
         }
 
-        // Mengatur Panel Goal vs Live API
         function toggleWidgetMode() {
             const mode = document.getElementById('inModeWidget').value;
             if (mode === 'live') {
@@ -334,33 +396,30 @@
         }
 
         function generateLink() {
-            saveData(); // Save setiap kali generate
+            saveData();
             
-            const yt = encodeURIComponent(document.getElementById('inYt').value);
-            const ig = encodeURIComponent(document.getElementById('inIg').value);
-            const tt = encodeURIComponent(document.getElementById('inTt').value);
-            const wMode = document.getElementById('inModeWidget').value;
-            
-            const gTitle = encodeURIComponent(document.getElementById('inGoalTitle').value);
-            const gCur = document.getElementById('inGoalCurrent').value;
-            const gTar = document.getElementById('inGoalTarget').value;
-            
-            const api = encodeURIComponent(document.getElementById('inApiKey').value);
-            const chId = encodeURIComponent(document.getElementById('inYtId').value);
+            const params = new URLSearchParams({
+                mode: 'overlay',
+                yt: document.getElementById('inYt').value,
+                ig: document.getElementById('inIg').value,
+                tt: document.getElementById('inTt').value,
+                wmode: document.getElementById('inModeWidget').value,
+                gtitle: document.getElementById('inGoalTitle').value,
+                gcur: document.getElementById('inGoalCurrent').value,
+                gtar: document.getElementById('inGoalTarget').value,
+                api: document.getElementById('inApiKey').value,
+                chid: document.getElementById('inYtId').value,
+                marq: document.getElementById('inMarquee').value,
+                amsg: document.getElementById('inAlertMsg').value,
+                theme: document.getElementById('inTheme').value,
+                fx: document.getElementById('inParticles').value,
+                clock: document.getElementById('inShowClock').checked ? '1' : '0'
+            });
 
-            const marquee = encodeURIComponent(document.getElementById('inMarquee').value);
-            const alertMsg = encodeURIComponent(document.getElementById('inAlertMsg').value);
+            const fullUrl = window.location.href.split('?')[0] + '?' + params.toString();
 
-            // Buat URL saat ini ditambah parameter
-            const baseUrl = window.location.href.split('?')[0];
-            const params = `?mode=overlay&yt=${yt}&ig=${ig}&tt=${tt}&wmode=${wMode}&gtitle=${gTitle}&gcur=${gCur}&gtar=${gTar}&api=${api}&chid=${chId}&marq=${marquee}&amsg=${alertMsg}`;
-            const fullUrl = baseUrl + params;
-
-            // Tampilkan Link
             document.getElementById('outUrl').value = fullUrl;
             document.getElementById('resultContainer').classList.remove('hidden');
-
-            // Update Preview (mengirim URL ke iframe)
             document.getElementById('previewFrame').src = fullUrl;
         }
 
@@ -368,156 +427,225 @@
             const copyText = document.getElementById('outUrl');
             copyText.select();
             document.execCommand('copy');
-            alert("Link berhasil di-copy! Paste di OBS Browser Source.");
+            alert("Link kerenmu berhasil di-copy! Siap dipaste ke OBS Browser Source.");
         }
 
 
-        // --- LOGIKA OVERLAY (Saat di OBS atau Preview) ---
+        function initParticles(type) {
+            if (type === 'none') return;
+            const canvas = document.getElementById('fxCanvas');
+            const ctx = canvas.getContext('2d');
+            let width, height;
+            let particles = [];
+
+            function resize() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            const particleCount = type === 'snow' ? 100 : 50;
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    r: type === 'snow' ? Math.random() * 3 + 1 : Math.random() * 1.5 + 0.5,
+                    d: Math.random() * particleCount,
+                    speedY: type === 'snow' ? Math.random() * 1 + 0.5 : Math.random() * 0.2 + 0.1,
+                    speedX: type === 'snow' ? Math.random() * 1 - 0.5 : 0
+                });
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.beginPath();
+                for (let i = 0; i < particleCount; i++) {
+                    let p = particles[i];
+                    ctx.moveTo(p.x, p.y);
+                    if (type === 'snow') {
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2, true);
+                    } else if (type === 'stars') {
+                        // Twinkling stars
+                        ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.3})`;
+                        ctx.fillRect(p.x, p.y, p.r, p.r);
+                    }
+                }
+                ctx.fill();
+                update();
+            }
+
+            function update() {
+                for (let i = 0; i < particleCount; i++) {
+                    let p = particles[i];
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+
+                    if (p.y > height) {
+                        particles[i] = { x: Math.random() * width, y: 0, r: p.r, d: p.d, speedY: p.speedY, speedX: p.speedX };
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        // --- EKSEKUSI OVERLAY (Saat diload) ---
         window.onload = () => {
-            // Cek apakah ini mode overlay (membaca URL Parameters)
             const urlParams = new URLSearchParams(window.location.search);
             const isOverlay = urlParams.get('mode') === 'overlay';
 
             if (!isOverlay) {
-                // Berarti sedang di mode Dashboard
                 loadData();
-                toggleWidgetMode();
-                return; // Stop eksekusi script overlay
+                return; // Stop eksekusi jika bukan overlay
             }
 
-            // --- EKSEKUSI OVERLAY ---
-            // Sembunyikan Dashboard, Tampilkan Layar Overlay
+            // Aktifkan Tampilan Overlay
             document.getElementById('dashboard').classList.add('hidden');
             document.getElementById('overlayScreen').classList.remove('hidden');
             document.getElementById('mainBody').classList.add('mode-overlay');
 
-            // Ambil data dari URL
+            // Ambil Parameter
             const dataYt = urlParams.get('yt') || 'MyChannel';
             const dataIg = urlParams.get('ig') || '@myinsta';
             const dataTt = urlParams.get('tt') || '@mytiktok';
             const wMode = urlParams.get('wmode') || 'goal';
-            
             const gTitle = urlParams.get('gtitle') || 'Sub Goal';
             const gCur = parseInt(urlParams.get('gcur')) || 0;
             const gTar = parseInt(urlParams.get('gtar')) || 100;
-
             const api = urlParams.get('api') || '';
             const chId = urlParams.get('chid') || '';
-
             const marquee = urlParams.get('marq') || '';
             const alertMsg = urlParams.get('amsg') || 'Baru saja Subscribe!';
+            
+            // Parameter Baru
+            const themeKey = urlParams.get('theme') || 'pink';
+            const fxType = urlParams.get('fx') || 'none';
+            const showClock = urlParams.get('clock') === '1';
 
-            // 1. Setup Running Text
+            // 0. TERAPKAN TEMA WARNA & EFEK
+            const activeTheme = themeConfig[themeKey];
+            
+            // Apply ke Gradient Class
+            document.querySelectorAll('.theme-gradient').forEach(el => {
+                el.classList.add('bg-gradient-to-r', activeTheme.gradient[0], activeTheme.gradient[1]);
+            });
+            // Apply ke Text Class
+            document.querySelectorAll('.theme-text').forEach(el => {
+                el.classList.add(activeTheme.text);
+            });
+            // Apply ke Border & Shadow
+            document.querySelectorAll('.theme-border').forEach(el => {
+                el.classList.add(activeTheme.border);
+            });
+            document.querySelectorAll('.theme-shadow').forEach(el => {
+                el.classList.add(activeTheme.shadow);
+            });
+
+            // Inisialisasi Particle Effects
+            initParticles(fxType);
+
+            // 1. Setup Jam Digital
+            if (showClock) {
+                const clockWidget = document.getElementById('clockWidget');
+                const clockText = document.getElementById('clockText');
+                clockWidget.classList.remove('hidden');
+                
+                setInterval(() => {
+                    const now = new Date();
+                    clockText.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
+                }, 1000);
+            }
+
+            // 2. Setup Running Text
             if(marquee.trim() !== '') {
                 document.getElementById('outMarquee').textContent = marquee;
                 document.getElementById('marqueeWrapper').classList.remove('hidden');
             }
 
-            // 2. Setup Social Rotator
+            // 3. Setup Social Rotator
             const socials = [
                 { icon: 'fa-youtube', color: 'from-red-600 to-red-500', text: dataYt },
                 { icon: 'fa-instagram', color: 'from-pink-600 to-orange-500', text: dataIg },
                 { icon: 'fa-tiktok', color: 'from-gray-800 to-black', text: dataTt }
             ];
-            
             let socIndex = 0;
             const socIcon = document.getElementById('socIcon');
             const socText = document.getElementById('socText');
 
             setInterval(() => {
-                // Animasi Keluar
                 socText.classList.remove('rotate-text-enter');
                 socText.classList.add('rotate-text-exit');
-                
                 setTimeout(() => {
                     socIndex = (socIndex + 1) % socials.length;
                     const s = socials[socIndex];
-                    
-                    // Ganti Konten
                     socIcon.innerHTML = `<i class="fab ${s.icon} text-white"></i>`;
                     socIcon.className = `w-10 h-10 rounded-full bg-gradient-to-tr ${s.color} flex items-center justify-center text-xl transition-all duration-500`;
                     socText.textContent = s.text;
-                    
-                    // Animasi Masuk
                     socText.classList.remove('rotate-text-exit');
                     socText.classList.add('rotate-text-enter');
-                }, 500); // Tunggu exit selesai
-            }, 8000); // Ganti tiap 8 detik
+                }, 500);
+            }, 8000);
 
-            // 3. Setup Goal / Live Widget
+            // 4. Setup Goal / Live Widget (Disesuaikan warnanya)
             if (wMode === 'goal') {
-                // Mode Progress Bar Biasa
                 document.getElementById('outGoalTitle').textContent = gTitle;
                 document.getElementById('outGoalCurrent').textContent = gCur;
                 document.getElementById('outGoalTarget').textContent = gTar;
-                
                 const percentage = Math.min((gCur / gTar) * 100, 100);
                 document.getElementById('outGoalBar').style.width = `${percentage}%`;
-
             } else if (wMode === 'live') {
-                // Mode Live Subscriber
                 document.getElementById('goalSlash').classList.add('hidden');
                 document.getElementById('outGoalTarget').classList.add('hidden');
                 document.getElementById('goalBarContainer').classList.add('hidden');
-                
                 let currentVisualSubs = 0;
 
-                // Fungsi Pemicu Animasi Angka
                 const animateNumber = (newNumber) => {
                     if (newNumber !== currentVisualSubs && currentVisualSubs !== 0) {
                         const el = document.getElementById('outGoalCurrent');
                         el.classList.remove('pop-anim');
-                        void el.offsetWidth; // Trigger reflow
+                        void el.offsetWidth;
                         el.classList.add('pop-anim');
                     }
                     currentVisualSubs = newNumber;
-                    // Format dengan titik (e.g. 1.000)
                     document.getElementById('outGoalCurrent').textContent = newNumber.toLocaleString('id-ID');
                 };
 
                 if (api && chId) {
-                    // MENGGUNAKAN YOUTUBE API ASLI
                     document.getElementById('outGoalTitle').textContent = "Live Subscribers";
                     document.getElementById('outGoalCurrent').textContent = "Loading...";
-                    
                     const fetchSubs = async () => {
                         try {
                             const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${chId}&key=${api}`);
                             const data = await res.json();
-                            
-                            // Deteksi error dari Google
                             if(data.error) {
-                                console.error("YouTube API Error:", data.error.message);
                                 document.getElementById('outGoalCurrent').textContent = "API Error";
                                 document.getElementById('outGoalCurrent').className = 'text-red-500 text-sm bg-red-900/50 px-2 rounded';
                                 return;
                             }
-                            
                             if(data.items && data.items.length > 0) {
                                 const subs = parseInt(data.items[0].statistics.subscriberCount);
                                 animateNumber(subs);
-                                document.getElementById('outGoalCurrent').className = 'text-pink-400 transition-all duration-300 inline-block'; // Kembalikan warna normal
+                                document.getElementById('outGoalCurrent').className = `${activeTheme.text} transition-all duration-300 inline-block`;
                             } else {
-                                // Jika API jalan, tapi channel tidak ditemukan
                                 document.getElementById('outGoalCurrent').textContent = "ID Channel Salah";
                                 document.getElementById('outGoalCurrent').className = 'text-yellow-400 text-sm';
                             }
                         } catch (e) { 
-                            console.error("Gagal mengambil data YouTube API", e); 
                             document.getElementById('outGoalCurrent').textContent = "Koneksi Putus";
                         }
                     };
-                    fetchSubs(); // Tarik pertama kali
-                    setInterval(fetchSubs, 60000); // Tarik lagi setiap 60 detik (Limit Google adalah 10,000 kuota/hari)
+                    fetchSubs();
+                    setInterval(fetchSubs, 60000);
                 } else {
-                    // DEMO MODE LIVE SUBS (Karena tidak ada API Key)
                     document.getElementById('outGoalTitle').textContent = "Live Subs (DEMO)";
                     document.getElementById('outGoalTitle').className = "text-xs font-bold text-yellow-500 uppercase tracking-wider";
-                    
                     let demoSubs = 15420;
                     animateNumber(demoSubs);
-
-                    // Angka naik acak setiap 10-25 detik
                     setInterval(() => {
                         demoSubs += Math.floor(Math.random() * 3) + 1;
                         animateNumber(demoSubs);
@@ -525,7 +653,7 @@
                 }
             }
 
-            // 4. Setup Alert Simulasi Berdasarkan Input Kustom
+            // 5. Setup Alert Simulasi Kustom
             const triggerAlert = () => {
                 const box = document.getElementById('alertBox');
                 const names = ['Ahmad', 'BudiGaming', 'Siti_99', 'JohnDoe', 'ProPlayer21'];
@@ -534,31 +662,35 @@
                 document.getElementById('alertName').textContent = randomName;
                 document.getElementById('alertDesc').textContent = alertMsg;
 
-                // Ubah Ikon jika kata kunci tertentu ada
                 const msgLower = alertMsg.toLowerCase();
                 const iconContainer = document.getElementById('alertIcon');
                 
+                // Tema Warna Ikon Mengikuti Tema Utama
+                const iconTextColors = {
+                    pink: 'text-pink-600', blue: 'text-blue-600', 
+                    green: 'text-emerald-600', red: 'text-red-600'
+                };
+                let currentIconColor = iconTextColors[themeKey];
+
                 if(msgLower.includes('donasi') || msgLower.includes('donate')) {
                     iconContainer.innerHTML = '<i class="fas fa-coins"></i>';
-                    iconContainer.className = "bg-white text-yellow-500 rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-inner";
+                    currentIconColor = 'text-yellow-500'; // Override khusus koin
                 } else if(msgLower.includes('follow')) {
                     iconContainer.innerHTML = '<i class="fas fa-heart"></i>';
-                    iconContainer.className = "bg-white text-pink-500 rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-inner";
                 } else {
                     iconContainer.innerHTML = '<i class="fab fa-youtube"></i>';
-                    iconContainer.className = "bg-white text-red-600 rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-inner";
                 }
+                
+                iconContainer.className = `bg-white ${currentIconColor} rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-inner`;
 
-                // Restart Animasi
                 box.classList.remove('hidden', 'alert-pop');
                 void box.offsetWidth; 
                 box.classList.add('alert-pop');
             };
 
-            // Jalankan alert simulasi pertama di detik ke 5, lalu acak
             setTimeout(() => {
                 triggerAlert();
-                setInterval(triggerAlert, Math.random() * 30000 + 45000); // Tiap 45-75 detik
+                setInterval(triggerAlert, Math.random() * 30000 + 45000);
             }, 5000);
         };
     </script>
