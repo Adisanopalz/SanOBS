@@ -1,931 +1,798 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Overlay Studio PRO</title>
-    
+    <title>OBS Configurable Overlay</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Orbitron:wght@400;700;900&family=Oswald:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        orbitron: ['Orbitron', 'sans-serif'],
-                        oswald: ['Oswald', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace']
-                    },
-                    colors: {
-                        nxs: {
-                            bg: '#050508',
-                            panel: '#0d0d14',
-                            surface: '#151520',
-                            border: 'rgba(255, 255, 255, 0.06)',
-                            primary: '#00e5ff',
-                            secondary: '#b400ff',
-                            accent: '#ff0055',
-                            text: '#e2e8f0',
-                            muted: '#64748b'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --accent-rgb: 0, 229, 255; }
-        body { background-color: #050508; color: #e2e8f0; overflow: hidden; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-
-        .glass { background: rgba(13, 13, 20, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-panel { background: linear-gradient(145deg, rgba(21, 21, 32, 0.9) 0%, rgba(13, 13, 20, 0.9) 100%); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
-        .input-pro { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 12px; color: white; font-size: 12px; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; }
-        .input-pro:focus { border-color: var(--nxs-primary, #00e5ff); box-shadow: 0 0 0 2px rgba(0,229,255,0.1); outline: none; }
-        .label-pro { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 4px; font-weight: 600; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Poppins:wght@700&display=swap');
         
-        .bg-dot-grid { background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px); background-size: 20px 20px; }
-        #canvas-wrapper { transition: transform 0.1s ease-out; }
-        
-        .widget-node { position: absolute; user-select: none; touch-action: none; transform-origin: center center; }
-        .widget-node::before { content: ''; position: absolute; inset: -1px; border: 1px solid transparent; pointer-events: none; transition: border-color 0.2s; border-radius: inherit; }
-        .widget-node:hover::before { border-color: rgba(255, 255, 255, 0.2); }
-        .widget-node.selected::before { border-color: #00e5ff; box-shadow: 0 0 0 1px #00e5ff, 0 0 15px rgba(0,229,255,0.3); z-index: 50; }
-        
-        .resize-handle { position: absolute; background: #00e5ff; border: 2px solid #000; border-radius: 50%; opacity: 0; pointer-events: none; width: 12px; height: 12px; z-index: 51; }
-        .widget-node.selected .resize-handle { opacity: 1; pointer-events: all; }
-        .resize-nw { top: -6px; left: -6px; cursor: nwse-resize; } .resize-ne { top: -6px; right: -6px; cursor: nesw-resize; }
-        .resize-sw { bottom: -6px; left: -6px; cursor: nesw-resize; } .resize-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
-        
-        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee linear infinite; }
-        
-        @keyframes rgb-border { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-        .rgb-webcam-border {
-            position: absolute; inset: -4px; border-radius: inherit; z-index: -1;
-            background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
-            background-size: 400%; animation: rgb-border 20s linear infinite; filter: blur(5px);
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Penting untuk OBS agar tidak ada scrollbar */
         }
 
-        @keyframes pulse-soft { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
-        .anim-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+        /* --- KELAS UNTUK MODE OVERLAY OBS --- */
+        .mode-overlay {
+            background-color: transparent !important;
+            background-image: none !important;
+        }
 
-        /* Custom Tabs */
-        .tab-btn { color: #64748b; border-bottom: 2px solid transparent; transition: all 0.2s; }
-        .tab-btn.active { color: #00e5ff; border-bottom-color: #00e5ff; }
+        .obs-widget {
+            position: absolute;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+            z-index: 10;
+        }
 
-        /* Toast */
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-        .toast { background: rgba(13, 13, 20, 0.9); border: 1px solid rgba(255,255,255,0.1); border-left: 3px solid #00e5ff; padding: 12px 16px; border-radius: 6px; color: white; font-size: 13px; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(10px); animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        .glass-panel-overlay {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+
+        /* Animasi Text Rotator */
+        .rotate-text-enter { animation: slideUpIn 0.5s forwards; }
+        .rotate-text-exit { animation: slideUpOut 0.5s forwards; }
+
+        @keyframes slideUpIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideUpOut {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-20px); opacity: 0; }
+        }
+
+        /* Animasi Alert Pop */
+        .alert-pop {
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, popOut 0.5s ease-in 4s forwards;
+            opacity: 0;
+            transform: scale(0.5) translateY(-50px);
+        }
+
+        @keyframes popIn {
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes popOut {
+            to { opacity: 0; transform: scale(0.8) translateY(-30px); }
+        }
+        
+        /* Animasi Angka Berubah */
+        @keyframes popNumber {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.3); filter: brightness(1.5); text-shadow: 0 0 10px currentColor; }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        .pop-anim { animation: popNumber 0.5s ease; }
+
+        /* Progress Bar Animation */
+        .progress-fill {
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Marquee / Running Text */
+        .marquee-container {
+            overflow: hidden;
+            white-space: nowrap;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 20%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0) 100%);
+            padding: 4px 0;
+            z-index: 50;
+        }
+        .marquee-text {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 20s linear infinite;
+            color: #fff;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px #000;
+        }
+        @keyframes marquee {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
+
+        /* Canvas Particle Effects */
+        #fxCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1; /* Di bawah widget, di atas background OBS */
+        }
     </style>
 </head>
-<body class="flex flex-col h-screen font-sans selection:bg-nxs-primary selection:text-black">
+<body class="bg-gray-900 text-gray-100 min-h-screen relative" id="mainBody">
 
-    <header class="h-14 glass flex items-center justify-between px-4 z-40 border-b border-nxs-border shrink-0">
-        <div class="flex items-center gap-4">
-            <div class="w-8 h-8 rounded bg-gradient-to-br from-nxs-primary to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(0,229,255,0.3)]">
-                <i class="fa-solid fa-layer-group text-nxs-bg text-sm"></i>
-            </div>
-            <div class="flex flex-col">
-                <h1 class="font-bold text-sm tracking-widest text-white leading-none">NEXUS<span class="font-light text-nxs-primary">PRO</span></h1>
-                <span class="text-[9px] text-nxs-muted uppercase">Broadcast Studio</span>
-            </div>
-            
-            <div class="h-6 w-px bg-nxs-border mx-2"></div>
-            
-            <!-- Scene Selector -->
-            <div class="relative group">
-                <button class="flex items-center gap-2 px-3 py-1.5 bg-nxs-surface hover:bg-white/10 border border-nxs-border rounded-md text-xs transition-colors">
-                    <i class="fa-solid fa-clapperboard text-nxs-muted"></i>
-                    <span id="current-scene-name" class="font-medium">Main Gaming</span>
-                    <i class="fa-solid fa-chevron-down text-[10px] text-nxs-muted ml-2"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Toolbar Center -->
-        <div class="flex items-center gap-1 bg-nxs-surface p-1 rounded-lg border border-nxs-border">
-            <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-nxs-muted hover:text-white transition" title="Undo" onclick="showToast('Undo unavailable in demo', 'info')"><i class="fa-solid fa-rotate-left"></i></button>
-            <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-nxs-muted hover:text-white transition" title="Redo" onclick="showToast('Redo unavailable in demo', 'info')"><i class="fa-solid fa-rotate-right"></i></button>
-            <div class="w-px h-4 bg-nxs-border mx-1"></div>
-            <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-nxs-muted hover:text-white transition" onclick="toggleGrid()" title="Toggle Grid"><i class="fa-solid fa-border-all"></i></button>
-            <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-white/10 text-nxs-muted hover:text-white transition" onclick="centerCanvas()" title="Center Canvas"><i class="fa-solid fa-compress"></i></button>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2 px-2 py-1 rounded bg-green-500/10 border border-green-500/20">
-                <div id="save-dot" class="w-2 h-2 rounded-full bg-green-500"></div>
-                <span id="save-text" class="text-[10px] font-mono text-green-400">Synced</span>
-            </div>
-            <button onclick="openObsModal()" class="flex items-center gap-2 px-4 py-1.5 bg-white text-black hover:bg-gray-200 rounded-md text-xs font-bold transition-all shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                <i class="fa-brands fa-obs"></i> BROWSER SOURCE
-            </button>
-        </div>
-    </header>
-
-    <main class="flex-1 flex overflow-hidden relative">
+    <!-- BAGIAN 1: DASHBOARD (Hanya tampil di Browser Biasa) -->
+    <div id="dashboard" class="p-8 max-w-6xl mx-auto flex flex-col md:flex-row gap-8 overflow-y-auto max-h-screen pb-20">
         
-        <!-- Left Sidebar: Elements -->
-        <aside class="w-64 glass-panel border-r border-nxs-border flex flex-col z-30 shrink-0">
-            <div class="p-3 border-b border-nxs-border flex gap-2 overflow-x-auto hide-scrollbar">
-                <button class="px-3 py-1.5 bg-nxs-surface rounded text-xs font-medium text-white shrink-0">Elements</button>
-                <button class="px-3 py-1.5 hover:bg-nxs-surface rounded text-xs font-medium text-nxs-muted shrink-0 transition" onclick="showToast('Upload feature coming soon', 'info')">Uploads</button>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto p-4 space-y-6">
-                <!-- Basic -->
-                <div>
-                    <h3 class="label-pro mb-3 flex items-center gap-2"><i class="fa-solid fa-cube"></i> Basic</h3>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="addWidget('text')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nxs-primary/10 border border-white/5 hover:border-nxs-primary/50 rounded-lg transition-all group">
-                            <i class="fa-solid fa-t text-lg text-nxs-muted group-hover:text-nxs-primary"></i><span class="text-[10px] font-medium">Text</span>
-                        </button>
-                        <button onclick="addWidget('clock')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nxs-primary/10 border border-white/5 hover:border-nxs-primary/50 rounded-lg transition-all group">
-                            <i class="fa-regular fa-clock text-lg text-nxs-muted group-hover:text-nxs-primary"></i><span class="text-[10px] font-medium">Clock</span>
-                        </button>
-                    </div>
-                </div>
+        <!-- Kolom Form -->
+        <div class="flex-1 bg-gray-800 p-6 rounded-2xl shadow-2xl border border-gray-700">
+            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500 mb-2">
+                <i class="fas fa-magic mr-2 text-pink-500"></i>Overlay Generator Pro
+            </h1>
+            <p class="text-gray-400 mb-6 text-sm">Sesuaikan gaya stream-mu, lalu Copy Link untuk OBS Browser Source.</p>
 
-                <!-- Stream Alerts & Data -->
-                <div>
-                    <h3 class="label-pro mb-3 flex items-center gap-2"><i class="fa-solid fa-satellite-dish"></i> Stream Data</h3>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="addWidget('goal')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nxs-secondary/10 border border-white/5 hover:border-nxs-secondary/50 rounded-lg transition-all group">
-                            <i class="fa-solid fa-bullseye text-lg text-nxs-muted group-hover:text-nxs-secondary"></i><span class="text-[10px] font-medium">Goal Bar</span>
-                        </button>
-                        <button onclick="addWidget('alert')" class="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-nxs-accent/10 border border-white/5 hover:border-nxs-accent/50 rounded-lg transition-all group">
-                            <i class="fa-solid fa-bell text-lg text-nxs-muted group-hover:text-nxs-accent"></i><span class="text-[10px] font-medium">Alert Box</span>
-                        </button>
-                        <button onclick="addWidget('chat')" class="col-span-2 flex items-center justify-center gap-2 p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-all">
-                            <i class="fa-regular fa-comments text-nxs-muted"></i><span class="text-[10px] font-medium">Live Chat Box</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Advanced / Media -->
-                <div>
-                    <h3 class="label-pro mb-3 flex items-center gap-2"><i class="fa-solid fa-bolt"></i> Advanced</h3>
-                    <div class="space-y-2">
-                        <button onclick="addWidget('webcam')" class="w-full flex items-center gap-3 p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg transition-all">
-                            <div class="w-6 h-6 rounded bg-gradient-to-r from-red-500 to-purple-500 flex items-center justify-center"><i class="fa-solid fa-camera text-xs text-white"></i></div>
-                            <div class="text-left"><p class="text-[10px] font-bold">RGB Webcam</p><p class="text-[8px] text-nxs-muted">Animated neon frame</p></div>
-                        </button>
-                        <button onclick="addWidget('spotify')" class="w-full flex items-center gap-3 p-2 bg-white/5 hover:bg-green-500/10 border border-white/5 hover:border-green-500/30 rounded-lg transition-all">
-                            <div class="w-6 h-6 rounded bg-[#1DB954] flex items-center justify-center"><i class="fa-brands fa-spotify text-xs text-white"></i></div>
-                            <div class="text-left"><p class="text-[10px] font-bold">Now Playing</p><p class="text-[8px] text-nxs-muted">Spotify mockup</p></div>
-                        </button>
-                        <button onclick="addWidget('social')" class="w-full flex items-center gap-3 p-2 bg-white/5 hover:bg-blue-500/10 border border-white/5 hover:border-blue-500/30 rounded-lg transition-all">
-                            <div class="w-6 h-6 rounded bg-blue-500 flex items-center justify-center"><i class="fa-brands fa-twitter text-xs text-white"></i></div>
-                            <div class="text-left"><p class="text-[10px] font-bold">Social Handles</p><p class="text-[8px] text-nxs-muted">Animated lower third</p></div>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Layer List Mini -->
-            <div class="h-1/3 border-t border-nxs-border bg-nxs-surface/50 flex flex-col">
-                <div class="p-2 border-b border-nxs-border"><span class="text-[10px] font-bold uppercase tracking-wider text-nxs-muted">Layers</span></div>
-                <div id="layer-list" class="flex-1 overflow-y-auto p-2 space-y-1">
-                    <!-- Layers JS -->
-                </div>
-            </div>
-        </aside>
-
-        <section id="workspace" class="flex-1 bg-nxs-bg relative overflow-hidden flex flex-col">
-            <!-- Simulated AI Prompt Bar (Top of workspace) -->
-            <div class="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-[500px] glass rounded-full p-1.5 flex items-center shadow-2xl border border-white/10">
-                <i class="fa-solid fa-wand-magic-sparkles text-nxs-primary ml-3 mr-2"></i>
-                <input type="text" id="ai-prompt" placeholder="Describe layout (e.g., 'Neon Cyberpunk Stream')..." class="flex-1 bg-transparent border-none text-sm text-white placeholder-gray-500 focus:outline-none">
-                <button onclick="simulateAIGeneration()" class="bg-nxs-primary text-black px-4 py-1.5 rounded-full text-xs font-bold hover:bg-white transition-colors">Generate</button>
-            </div>
-
-            <!-- Interactive Canvas Container -->
-            <div id="pan-zoom-container" class="w-full h-full flex items-center justify-center relative cursor-grab active:cursor-grabbing bg-dot-grid" onwheel="handleWheel(event)" onmousedown="startPan(event)">
+            <div class="space-y-4">
                 
-                <div id="canvas-wrapper" class="relative bg-[#000000] ring-1 ring-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden" 
-                     style="width: 1920px; height: 1080px; transform: scale(0.5); transform-origin: center;">
-                    <!-- Base Canvas Layer -->
-                    <div id="canvas" class="absolute inset-0 w-full h-full">
-                        <!-- Widgets Injected Here -->
+                <!-- Estetika & Visual -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-palette mr-2 text-blue-400"></i>Estetika & Tampilan</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Tema Warna Widget</label>
+                            <select id="inTheme" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <option value="pink">Pink / Purple (Default)</option>
+                                <option value="blue">Blue / Cyan</option>
+                                <option value="green">Green / Emerald</option>
+                                <option value="red">Red / Orange</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Efek Layar (Particle)</label>
+                            <select id="inParticles" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <option value="none">Tanpa Efek</option>
+                                <option value="snow">Salju Turun</option>
+                                <option value="stars">Bintang Melayang</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs text-gray-400 mb-1">Label Status Stream (Kiri Atas)</label>
+                            <input type="text" id="inInfo" value="🎮 Valorant Live" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                        </div>
                     </div>
                 </div>
 
-            </div>
-
-            <!-- Canvas Info Footer -->
-            <div class="absolute bottom-4 left-4 z-20 glass px-3 py-1.5 rounded-md flex items-center gap-3 border border-white/5">
-                <span class="text-[10px] font-mono text-nxs-muted">1920 x 1080 (16:9)</span>
-                <span id="zoom-level" class="text-[10px] font-mono text-nxs-primary">50%</span>
-            </div>
-        </section>
-
-        <aside class="w-72 glass-panel border-l border-nxs-border flex flex-col z-30 shrink-0">
-            <div class="flex border-b border-nxs-border">
-                <button class="flex-1 py-3 text-xs font-bold tab-btn active" onclick="switchPropTab('design')">Design</button>
-                <button class="flex-1 py-3 text-xs font-bold tab-btn" onclick="switchPropTab('data')">Data</button>
-            </div>
-
-            <div id="properties-panel" class="flex-1 overflow-y-auto p-4">
-                <div id="prop-empty" class="h-full flex flex-col items-center justify-center text-center opacity-50">
-                    <i class="fa-solid fa-shapes text-3xl mb-3"></i>
-                    <p class="text-xs">Select an element<br>to view properties</p>
-                </div>
-
-                <div id="prop-content" class="hidden space-y-5">
-                    <!-- Layout Section -->
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="label-pro mb-0">Layout</h3>
-                            <button onclick="deleteSelected()" class="text-red-500 hover:text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+                <!-- Penempatan Layout -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-th-large mr-2 text-indigo-400"></i>Penempatan Layout</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Posisi Sosial Media</label>
+                            <select id="inPosSocial" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <option value="bl">Kiri Bawah (Default)</option>
+                                <option value="ml">Kiri Tengah</option>
+                                <option value="tl">Kiri Atas</option>
+                                <option value="br">Kanan Bawah</option>
+                            </select>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div><label class="text-[9px] text-nxs-muted mb-1 block">X</label><input type="number" id="prop-x" class="input-pro" onchange="updateSelected('x', this.value)"></div>
-                            <div><label class="text-[9px] text-nxs-muted mb-1 block">Y</label><input type="number" id="prop-y" class="input-pro" onchange="updateSelected('y', this.value)"></div>
-                            <div><label class="text-[9px] text-nxs-muted mb-1 block">W</label><input type="number" id="prop-w" class="input-pro" onchange="updateSelected('w', this.value)"></div>
-                            <div><label class="text-[9px] text-nxs-muted mb-1 block">H</label><input type="number" id="prop-h" class="input-pro" onchange="updateSelected('h', this.value)"></div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Posisi Target/Goal Bar</label>
+                            <select id="inPosGoal" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                                <option value="br">Kanan Bawah (Default)</option>
+                                <option value="mr">Kanan Tengah</option>
+                                <option value="tr">Kanan Atas</option>
+                                <option value="bl">Kiri Bawah</option>
+                            </select>
                         </div>
                     </div>
+                </div>
 
-                    <div class="h-px bg-nxs-border w-full"></div>
-
-                    <!-- Appearance Section -->
-                    <div id="tab-design">
-                        <h3 class="label-pro mb-3">Appearance</h3>
-                        
-                        <div id="prop-color-group" class="mb-3 hidden">
-                            <label class="text-[10px] text-gray-300 block mb-1">Primary Color</label>
-                            <div class="flex gap-2">
-                                <input type="color" id="prop-color" class="w-8 h-8 rounded border-none bg-transparent cursor-pointer" onchange="updateSelectedProp('color', this.value)">
-                                <input type="text" id="prop-color-hex" class="input-pro flex-1" onchange="updateSelectedProp('color', this.value)">
-                            </div>
+                <!-- Sosial Media -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-users mr-2 text-purple-400"></i>Sosial Media</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">YouTube Name</label>
+                            <input type="text" id="inYt" value="MyChannel" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
                         </div>
-
-                        <div id="prop-bg-group" class="mb-3 hidden">
-                            <label class="text-[10px] text-gray-300 block mb-1">Background Color</label>
-                            <input type="color" id="prop-bg" class="w-full h-8 rounded border-none bg-transparent cursor-pointer" onchange="updateSelectedProp('bgColor', this.value)">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Instagram (@)</label>
+                            <input type="text" id="inIg" value="@myinsta" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
                         </div>
-
-                        <div id="prop-opacity-group" class="mb-3">
-                            <div class="flex justify-between"><label class="text-[10px] text-gray-300">Opacity</label><span id="val-opacity" class="text-[9px] font-mono text-nxs-primary">100%</span></div>
-                            <input type="range" id="prop-opacity" min="0" max="1" step="0.05" class="w-full accent-nxs-primary" oninput="updateSelectedProp('opacity', this.value); document.getElementById('val-opacity').innerText=Math.round(this.value*100)+'%'">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Tiktok (@)</label>
+                            <input type="text" id="inTt" value="@mytiktok" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
                         </div>
+                    </div>
+                </div>
 
-                        <div id="prop-glow-group" class="mb-3 hidden">
-                            <div class="flex justify-between"><label class="text-[10px] text-gray-300">Neon Glow</label><span id="val-glow" class="text-[9px] font-mono text-nxs-primary">0px</span></div>
-                            <input type="range" id="prop-glow" min="0" max="100" class="w-full accent-nxs-primary" oninput="updateSelectedProp('glow', this.value); document.getElementById('val-glow').innerText=this.value+'px'">
-                        </div>
+                <!-- Goal / Live Subs Setting -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <div class="flex justify-between items-center mb-3 border-b border-gray-700 pb-2">
+                        <h3 class="font-bold text-lg"><i class="fas fa-bullseye mr-2 text-red-400"></i>Widget Target</h3>
+                        <select id="inModeWidget" class="bg-gray-800 text-sm border border-gray-600 rounded p-1" onchange="toggleWidgetMode()">
+                            <option value="goal">Target Goal (Progress Bar)</option>
+                            <option value="live">Live Subscriber Count</option>
+                        </select>
+                    </div>
 
-                        <div id="prop-radius-group" class="mb-3 hidden">
-                            <div class="flex justify-between"><label class="text-[10px] text-gray-300">Corner Radius</label><span id="val-radius" class="text-[9px] font-mono text-nxs-primary">0px</span></div>
-                            <input type="range" id="prop-radius" min="0" max="100" class="w-full accent-nxs-primary" oninput="updateSelectedProp('borderRadius', this.value); document.getElementById('val-radius').innerText=this.value+'px'">
-                        </div>
-
-                        <div id="prop-typography" class="mt-4 hidden space-y-3">
-                            <h3 class="label-pro border-t border-nxs-border pt-3">Typography</h3>
+                    <!-- Panel Goal -->
+                    <div id="panelGoal">
+                        <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="text-[10px] text-gray-300 block mb-1">Font Family</label>
-                                <select id="prop-font" class="input-pro bg-[#0d0d14]" onchange="updateSelectedProp('font', this.value)">
-                                    <option value="Inter">Inter (Clean)</option>
-                                    <option value="Oswald">Oswald (Impact)</option>
-                                    <option value="Orbitron">Orbitron (Sci-Fi)</option>
-                                    <option value="'JetBrains Mono'">JetBrains (Code)</option>
-                                </select>
+                                <label class="block text-xs text-gray-400 mb-1">Judul Goal</label>
+                                <input type="text" id="inGoalTitle" value="Sub Goal" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600">
                             </div>
-                            <div id="prop-fontsize-group">
-                                <div class="flex justify-between"><label class="text-[10px] text-gray-300">Size</label><span id="val-fontsize" class="text-[9px] font-mono text-nxs-primary">12px</span></div>
-                                <input type="range" id="prop-fontsize" min="10" max="300" class="w-full accent-nxs-primary" oninput="updateSelectedProp('fontSize', this.value); document.getElementById('val-fontsize').innerText=this.value+'px'">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Data / Content Section -->
-                    <div id="tab-data" class="hidden space-y-4">
-                        <div id="data-text" class="hidden">
-                            <label class="label-pro">Content Text</label>
-                            <textarea id="prop-text" rows="3" class="input-pro resize-none" oninput="updateSelectedProp('text', this.value)"></textarea>
-                        </div>
-
-                        <div id="data-goal" class="hidden space-y-3">
-                            <label class="label-pro">Goal Configuration</label>
-                            <div><label class="text-[10px] text-gray-300 block mb-1">Title</label><input type="text" id="prop-title" class="input-pro" oninput="updateSelectedProp('title', this.value)"></div>
                             <div class="grid grid-cols-2 gap-2">
-                                <div><label class="text-[10px] text-gray-300 block mb-1">Current</label><input type="number" id="prop-current" class="input-pro" oninput="updateSelectedProp('current', this.value)"></div>
-                                <div><label class="text-[10px] text-gray-300 block mb-1">Target</label><input type="number" id="prop-target" class="input-pro" oninput="updateSelectedProp('target', this.value)"></div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Saat Ini</label>
+                                    <input type="number" id="inGoalCurrent" value="150" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Target</label>
+                                    <input type="number" id="inGoalTarget" value="500" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600">
+                                </div>
                             </div>
-                        </div>
-
-                        <div id="data-social" class="hidden space-y-3">
-                            <label class="label-pro">Social Handle</label>
-                            <div>
-                                <label class="text-[10px] text-gray-300 block mb-1">Platform</label>
-                                <select id="prop-platform" class="input-pro bg-[#0d0d14]" onchange="updateSelectedProp('platform', this.value)">
-                                    <option value="twitter">Twitter / X</option>
-                                    <option value="instagram">Instagram</option>
-                                    <option value="youtube">YouTube</option>
-                                    <option value="tiktok">TikTok</option>
-                                </select>
-                            </div>
-                            <div><label class="text-[10px] text-gray-300 block mb-1">Username</label><input type="text" id="prop-username" class="input-pro" oninput="updateSelectedProp('username', this.value)"></div>
-                        </div>
-
-                        <div id="data-alert" class="hidden space-y-3">
-                            <label class="label-pro">Alert Trigger</label>
-                            <button onclick="triggerAlert()" class="w-full py-2 bg-nxs-accent/20 hover:bg-nxs-accent/40 text-nxs-accent border border-nxs-accent/50 rounded text-xs font-bold transition">
-                                <i class="fa-solid fa-play mr-2"></i> Test Alert
-                            </button>
-                            <p class="text-[9px] text-nxs-muted leading-relaxed">Alert widgets remain hidden on canvas until triggered via API or test button.</p>
                         </div>
                     </div>
 
+                    <!-- Panel Live API -->
+                    <div id="panelLive" class="hidden space-y-3">
+                        <div class="bg-yellow-900/30 border border-yellow-700/50 rounded p-2 text-xs text-yellow-300">
+                            <i class="fas fa-info-circle mr-1"></i> Biarkan kosong jika tidak punya API Key untuk melihat Demo Mode.
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">YouTube Channel ID (Berawalan UC...)</label>
+                            <input type="text" id="inYtId" placeholder="UC..." class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Google API Key</label>
+                            <input type="password" id="inApiKey" placeholder="AIzaSy..." class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visibilitas Fitur (Aktif/Nonaktif) -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-eye mr-2 text-green-400"></i>Aktif / Nonaktifkan Widget</h3>
+                    <div class="flex flex-wrap gap-4">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inShowSoc" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                            <label class="text-sm font-semibold text-gray-200">Sosial Media</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inShowGoal" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                            <label class="text-sm font-semibold text-gray-200">Widget Target/Live</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inShowAlert" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                            <label class="text-sm font-semibold text-gray-200">Popup Alert</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ekstra: Running Text, Jam & Alert -->
+                <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
+                    <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-star mr-2 text-yellow-400"></i>Ekstra Fitur</h3>
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap gap-4">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="inShowClock" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                                <label class="text-sm font-semibold text-gray-200">Jam Digital</label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="inSfx" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                                <label class="text-sm font-semibold text-gray-200">Suara Alert (SFX)</label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="inEventList" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                                <label class="text-sm font-semibold text-gray-200">Daftar Event (Kanan Atas)</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Running Text (Kosongkan jika tidak mau)</label>
+                            <input type="text" id="inMarquee" value="Selamat datang di stream! Jangan lupa like & subscribe ya kawan-kawan~" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Teks Template Alert (Gunakan kata 'subscribe' atau 'donasi')</label>
+                            <input type="text" id="inAlertMsg" value="Baru saja Subscribe!" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500">
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="generateLink()" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-pink-500/20 text-lg">
+                    <i class="fas fa-link mr-2"></i> Generate & Update Preview
+                </button>
+
+                <div id="resultContainer" class="hidden mt-4 p-4 border-2 border-green-500/50 bg-green-900/20 rounded-xl">
+                    <p class="text-sm text-green-400 mb-2 font-semibold">Berhasil! Copy link ini ke OBS Browser Source:</p>
+                    <div class="flex">
+                        <input type="text" id="outUrl" readonly class="flex-1 bg-gray-900 p-2 rounded-l text-xs border border-green-700/50 text-gray-300 focus:outline-none">
+                        <button onclick="copyLink()" class="bg-green-600 hover:bg-green-500 px-4 rounded-r font-bold text-sm transition-colors">Copy</button>
+                    </div>
                 </div>
             </div>
-        </aside>
-    </main>
-
-    <div id="toast-container"></div>
-
-    <!-- OBS Browser Source Modal -->
-    <div id="obs-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity">
-        <div class="bg-nxs-surface border border-nxs-border rounded-xl w-[500px] shadow-2xl p-6 transform scale-95 transition-transform" id="obs-modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fa-brands fa-obs text-white"></i> OBS Browser Source</h2>
-                <button onclick="closeObsModal()" class="text-nxs-muted hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <p class="text-xs text-gray-400 mb-4">Add a new Browser Source in OBS Studio and use the following URL. Check "Make background transparent".</p>
-            
-            <div class="bg-black/50 border border-nxs-border rounded p-3 mb-4 flex items-center justify-between group">
-                <code class="text-xs text-nxs-primary font-mono select-all" id="obs-url">https://nexus.local/s/xyz123</code>
-                <button onclick="copyToClipboard('obs-url')" class="text-nxs-muted hover:text-white px-2 py-1 rounded bg-white/5 opacity-0 group-hover:opacity-100 transition"><i class="fa-regular fa-copy"></i></button>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div class="bg-white/5 rounded p-3 text-center">
-                    <span class="block text-[10px] text-nxs-muted uppercase tracking-wider mb-1">Width</span>
-                    <span class="font-mono text-white font-bold">1920</span>
-                </div>
-                <div class="bg-white/5 rounded p-3 text-center">
-                    <span class="block text-[10px] text-nxs-muted uppercase tracking-wider mb-1">Height</span>
-                    <span class="font-mono text-white font-bold">1080</span>
-                </div>
-            </div>
-
-            <button onclick="closeObsModal()" class="w-full py-2 bg-white text-black font-bold rounded hover:bg-gray-200 transition">Done</button>
         </div>
+
+        <!-- Kolom Preview Frame -->
+        <div class="flex-1 max-w-2xl hidden md:flex flex-col items-center">
+            <h2 class="text-xl font-bold mb-4 text-gray-300"><i class="fas fa-desktop mr-2"></i>Live Preview</h2>
+            <div class="w-full aspect-video bg-black rounded-xl overflow-hidden border-4 border-gray-700 shadow-2xl relative">
+                <!-- Frame untuk menampilkan hasil generate -->
+                <iframe id="previewFrame" src="about:blank" class="w-full h-full border-0 absolute inset-0 z-10 pointer-events-none"></iframe>
+                <!-- Dummy Background Game untuk ilustrasi -->
+                <div class="absolute inset-0 bg-gradient-to-br from-indigo-900 to-gray-900 flex items-center justify-center opacity-50 z-0">
+                    <span class="text-indigo-400/30 text-3xl font-bold tracking-widest uppercase">Dummy Gameplay</span>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4 text-center px-8">Klik "Generate" di kiri untuk melihat perubahan. Frame ini menyimulasikan tampilan asli (16:9) saat dimasukkan ke OBS.</p>
+        </div>
+
+        <!-- SOCIAL MEDIA ROTATOR (Posisi Dinamis) -->
+        <div id="widgetSocial" class="obs-widget">
+            <div class="glass-panel-overlay p-1 flex items-center gap-2 overflow-hidden w-[250px] h-[50px] theme-border shadow-lg">
+                <div id="socIcon" class="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center text-xl transition-all duration-500">
+                    <i class="fab fa-youtube text-white"></i>
+                </div>
+                <div class="relative flex-1 h-full flex items-center">
+                    <span id="socText" class="absolute font-bold text-lg tracking-wide text-gray-100 whitespace-nowrap">MyChannel</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- GOAL / LIVE STATS BAR (Posisi Dinamis) -->
+        <div id="widgetGoal" class="obs-widget">
+            <div class="glass-panel-overlay p-3 w-[300px] theme-border shadow-lg">
+                <!-- Header: Judul & Angka -->
+                <div class="flex justify-between items-end mb-2">
+                    <span id="outGoalTitle" class="text-xs font-bold text-gray-400 uppercase tracking-wider">Sub Goal</span>
+                    <div class="font-poppins font-bold text-lg">
+                        <span id="outGoalCurrent" class="theme-text transition-all duration-300 inline-block">150</span>
+                        <span id="goalSlash" class="text-gray-500 mx-1">/</span>
+                        <span id="outGoalTarget" class="text-gray-300">500</span>
+                    </div>
+                </div>
+                
+                <!-- Bar Container -->
+                <div id="goalBarContainer" class="w-full bg-gray-900 rounded-full h-3 shadow-inner overflow-hidden border border-gray-800">
+                    <div id="outGoalBar" class="theme-gradient h-full rounded-full progress-fill relative" style="width: 30%;">
+                        <!-- Efek cahaya di ujung bar -->
+                        <div class="absolute right-0 top-0 bottom-0 w-4 bg-white/40 blur-[2px]"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
-        // --- CORE STATE ---
-        const CANVAS_W = 1920;
-        const CANVAS_H = 1080;
-        let scale = 0.5;
-        let isPanning = false, startPanX, startPanY, panX = 0, panY = 0;
-        
-        let state = {
-            widgets: [],
-            selectedId: null
-        };
-
-        const DOM = {
-            canvas: document.getElementById('canvas'),
-            wrapper: document.getElementById('canvas-wrapper'),
-            layerList: document.getElementById('layer-list'),
-            propPanel: document.getElementById('prop-content'),
-            propEmpty: document.getElementById('prop-empty')
-        };
-
-        // --- DEFAULTS ---
-        const defaults = {
-            text: { text: 'NEXUS PRO', color: '#ffffff', glow: 0, fontSize: 80, font: 'Orbitron', opacity: 1 },
-            clock: { color: '#00e5ff', glow: 15, font: 'JetBrains Mono', fontSize: 60, opacity: 1 },
-            goal: { title: 'Follower Goal', current: 150, target: 500, color: '#b400ff', glow: 20, opacity: 1, bgColor: '#151520', borderRadius: 12 },
-            chat: { opacity: 1, bgColor: '#000000', borderRadius: 12 },
-            alert: { color: '#ff0055', glow: 30, opacity: 1 },
-            webcam: { opacity: 1, borderRadius: 8 },
-            spotify: { opacity: 1, borderRadius: 16, bgColor: '#111' },
-            social: { platform: 'twitter', username: '@nexus_streamer', color: '#1DA1F2', fontSize: 24, font: 'Inter', opacity: 1 }
-        };
-
-        // --- INIT & UTILS ---
-        function init() {
-            const saved = localStorage.getItem('nexus_pro_save');
-            if (saved) {
-                try { state = JSON.parse(saved); state.selectedId = null; } 
-                catch (e) { console.error(e); }
+        // --- DEKLARASI TEMA WARNA ---
+        const themeConfig = {
+            pink: {
+                gradient: ['from-pink-600', 'to-purple-600'],
+                text: 'text-pink-400',
+                border: 'border-pink-500/30',
+                shadow: 'shadow-pink-500/30'
+            },
+            blue: {
+                gradient: ['from-blue-600', 'to-cyan-600'],
+                text: 'text-cyan-400',
+                border: 'border-cyan-500/30',
+                shadow: 'shadow-cyan-500/30'
+            },
+            green: {
+                gradient: ['from-green-600', 'to-emerald-600'],
+                text: 'text-emerald-400',
+                border: 'border-emerald-500/30',
+                shadow: 'shadow-emerald-500/30'
+            },
+            red: {
+                gradient: ['from-red-600', 'to-orange-600'],
+                text: 'text-orange-400',
+                border: 'border-orange-500/30',
+                shadow: 'shadow-orange-500/30'
             }
-            centerCanvas();
-            renderAll();
-            startClockLoop();
+        };
+
+        // --- LOGIKA DASHBOARD (LOAD & SAVE) ---
+        function loadData() {
+            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles', 'inInfo', 'inPosSocial', 'inPosGoal'];
+            fields.forEach(field => {
+                if(localStorage.getItem(field)) document.getElementById(field).value = localStorage.getItem(field);
+            });
+            
+            // Checkbox khusus
+            ['inShowClock', 'inSfx', 'inEventList', 'inShowSoc', 'inShowGoal', 'inShowAlert'].forEach(id => {
+                if(localStorage.getItem(id) !== null) {
+                    document.getElementById(id).checked = localStorage.getItem(id) === 'true';
+                }
+            });
+
+            toggleWidgetMode();
         }
 
-        function saveState() {
-            localStorage.setItem('nexus_pro_save', JSON.stringify(state));
-            flashSaveIndicator();
+        function saveData() {
+            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles', 'inInfo', 'inPosSocial', 'inPosGoal'];
+            fields.forEach(field => {
+                localStorage.setItem(field, document.getElementById(field).value);
+            });
+            ['inShowClock', 'inSfx', 'inEventList', 'inShowSoc', 'inShowGoal', 'inShowAlert'].forEach(id => {
+                localStorage.setItem(id, document.getElementById(id).checked);
+            });
         }
 
-        function flashSaveIndicator() {
-            const dot = document.getElementById('save-dot');
-            dot.classList.remove('bg-green-500'); dot.classList.add('bg-white');
-            setTimeout(() => { dot.classList.remove('bg-white'); dot.classList.add('bg-green-500'); }, 300);
-        }
-
-        function genId() { return 'w_' + Math.random().toString(36).substr(2, 9); }
-
-        function showToast(msg, type='success') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            const icon = type === 'success' ? '<i class="fa-solid fa-check text-green-400"></i>' : '<i class="fa-solid fa-info-circle text-blue-400"></i>';
-            toast.className = 'toast';
-            toast.innerHTML = `${icon} <span>${msg}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.animation = 'slideOutRight 0.3s forwards';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-
-        // --- CANVAS NAVIGATION (PAN & ZOOM) ---
-        function handleWheel(e) {
-            e.preventDefault();
-            if (e.ctrlKey || e.metaKey) {
-                // Zoom
-                const zoomFactor = 0.05;
-                const delta = e.deltaY < 0 ? 1 : -1;
-                scale = Math.max(0.1, Math.min(3, scale + (delta * zoomFactor)));
-                updateTransform();
+        function toggleWidgetMode() {
+            const mode = document.getElementById('inModeWidget').value;
+            if (mode === 'live') {
+                document.getElementById('panelGoal').classList.add('hidden');
+                document.getElementById('panelLive').classList.remove('hidden');
             } else {
-                // Pan
-                panX -= e.deltaX;
-                panY -= e.deltaY;
-                updateTransform();
+                document.getElementById('panelGoal').classList.remove('hidden');
+                document.getElementById('panelLive').classList.add('hidden');
             }
         }
 
-        function startPan(e) {
-            if (e.target !== document.getElementById('pan-zoom-container') && e.target !== DOM.wrapper) return;
-            isPanning = true;
-            startPanX = e.clientX - panX;
-            startPanY = e.clientY - panY;
-            document.body.style.cursor = 'grabbing';
+        function generateLink() {
+            saveData();
             
-            const doPan = (e) => {
-                if(!isPanning) return;
-                panX = e.clientX - startPanX;
-                panY = e.clientY - startPanY;
-                updateTransform();
-            };
-            const stopPan = () => {
-                isPanning = false;
-                document.body.style.cursor = 'default';
-                window.removeEventListener('mousemove', doPan);
-                window.removeEventListener('mouseup', stopPan);
-            };
-            window.addEventListener('mousemove', doPan);
-            window.addEventListener('mouseup', stopPan);
-        }
-
-        function updateTransform() {
-            DOM.wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-            document.getElementById('zoom-level').innerText = Math.round(scale * 100) + '%';
-        }
-
-        function centerCanvas() {
-            const container = document.getElementById('pan-zoom-container');
-            const containerW = container.clientWidth;
-            const containerH = container.clientHeight;
-            // Fit to screen with padding
-            scale = Math.min((containerW - 100) / CANVAS_W, (containerH - 100) / CANVAS_H);
-            panX = 0; panY = 0;
-            updateTransform();
-        }
-
-        function toggleGrid() {
-            document.getElementById('pan-zoom-container').classList.toggle('bg-dot-grid');
-        }
-
-        // --- WIDGET CRUD ---
-        function addWidget(type) {
-            const w = {
-                id: genId(), type: type,
-                x: (CANVAS_W/2) - 150, y: (CANVAS_H/2) - 100,
-                w: type==='goal'?400 : type==='chat'?350 : type==='webcam'?400 : type==='spotify'?350 : type==='social'?250 : 300,
-                h: type==='goal'?100 : type==='chat'?500 : type==='webcam'?225 : type==='spotify'?100 : type==='social'?60 : 100,
-                props: JSON.parse(JSON.stringify(defaults[type]))
-            };
-            state.widgets.push(w);
-            selectWidget(w.id);
-            renderAll();
-            saveState();
-            showToast(`${type} widget added`);
-        }
-
-        function deleteSelected() {
-            if(!state.selectedId) return;
-            state.widgets = state.widgets.filter(w => w.id !== state.selectedId);
-            const el = document.getElementById(state.selectedId);
-            if(el) el.remove();
-            state.selectedId = null;
-            renderAll();
-            saveState();
-        }
-
-        function selectWidget(id, e) {
-            if(e) e.stopPropagation();
-            state.selectedId = id;
-            document.querySelectorAll('.widget-node').forEach(el => el.classList.remove('selected'));
-            if(id) {
-                const el = document.getElementById(id);
-                if(el) el.classList.add('selected');
-            }
-            renderLayers();
-            updatePropsUI();
-        }
-
-        document.getElementById('pan-zoom-container').addEventListener('mousedown', (e) => {
-            if(e.target === document.getElementById('pan-zoom-container') || e.target === DOM.wrapper || e.target === DOM.canvas) {
-                selectWidget(null);
-            }
-        });
-
-        // --- HTML TEMPLATES ---
-        function getWidgetHTML(w) {
-            const p = w.props;
-            const styleBase = `width:100%; height:100%; opacity:${p.opacity};`;
-            
-            if(w.type === 'text') {
-                return `<div class="flex items-center justify-center font-bold text-center break-words" style="${styleBase} color:${p.color}; text-shadow:0 0 ${p.glow}px ${p.color}; font-size:${p.fontSize}px; font-family:${p.font};">${p.text.replace(/\n/g, '<br>')}</div>`;
-            } 
-            if(w.type === 'clock') {
-                return `<div class="clock-val flex items-center justify-center font-bold" style="${styleBase} color:${p.color}; text-shadow:0 0 ${p.glow}px ${p.color}; font-size:${p.fontSize}px; font-family:${p.font};">00:00</div>`;
-            }
-            if(w.type === 'goal') {
-                const pct = Math.min(100, (p.current/p.target)*100);
-                return `
-                <div class="flex flex-col justify-between p-4 border border-white/10" style="${styleBase} background:${p.bgColor}cc; border-radius:${p.borderRadius}px; backdrop-filter:blur(10px); box-shadow:0 0 ${p.glow}px ${p.color}40;">
-                    <div class="flex justify-between font-bold text-lg mb-2" style="color:${p.color}; font-family:'Inter'"><span>${p.title}</span><span>${p.current} / ${p.target}</span></div>
-                    <div class="w-full h-6 bg-black/50 rounded-full overflow-hidden border border-white/5 relative">
-                        <div class="h-full transition-all duration-500 relative" style="width:${pct}%; background:${p.color}; box-shadow:0 0 15px ${p.color}">
-                            <div class="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"></div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            if(w.type === 'chat') {
-                return `
-                <div class="flex flex-col justify-end p-4 overflow-hidden border border-white/10" style="${styleBase} background:${p.bgColor}99; border-radius:${p.borderRadius}px; backdrop-filter:blur(8px); mask-image:linear-gradient(to top, black 70%, transparent 100%); -webkit-mask-image:linear-gradient(to top, black 70%, transparent 100%);">
-                    <div class="mb-2 p-2 rounded bg-black/60 border-l-4 border-[#00e5ff]"><span class="font-bold text-[#00e5ff] mr-2">User1:</span><span class="text-white text-sm">Hello stream!</span></div>
-                    <div class="mb-2 p-2 rounded bg-black/60 border-l-4 border-[#ff0055]"><span class="font-bold text-[#ff0055] mr-2">GamerPro:</span><span class="text-white text-sm">PogChamp play</span></div>
-                    <div class="mb-2 p-2 rounded bg-black/60 border-l-4 border-[#b400ff]"><span class="font-bold text-[#b400ff] mr-2">Mod:</span><span class="text-white text-sm">Welcome everyone!</span></div>
-                </div>`;
-            }
-            if(w.type === 'webcam') {
-                return `
-                <div class="relative" style="${styleBase}">
-                    <div class="rgb-webcam-border" style="border-radius:${p.borderRadius}px"></div>
-                    <div class="absolute inset-0 bg-black/80 flex items-center justify-center border border-white/20" style="border-radius:${p.borderRadius}px">
-                        <i class="fa-solid fa-video-slash text-white/30 text-4xl"></i>
-                    </div>
-                </div>`;
-            }
-            if(w.type === 'spotify') {
-                return `
-                <div class="flex items-center gap-4 p-4 border border-white/10 shadow-2xl" style="${styleBase} background:${p.bgColor}; border-radius:${p.borderRadius}px;">
-                    <div class="w-16 h-16 rounded bg-gradient-to-br from-green-400 to-green-600 animate-pulse flex-shrink-0"></div>
-                    <div class="flex-1 min-w-0">
-                        <div class="text-white font-bold text-lg truncate font-sans">Cyberpunk Soundtrack</div>
-                        <div class="text-gray-400 text-sm truncate font-sans">Synthwave Artist</div>
-                        <div class="w-full h-1.5 bg-white/20 rounded-full mt-2 overflow-hidden"><div class="h-full bg-green-500 w-1/3"></div></div>
-                    </div>
-                    <i class="fa-brands fa-spotify text-green-500 text-3xl"></i>
-                </div>`;
-            }
-            if(w.type === 'social') {
-                const colors = { twitter: '#1DA1F2', instagram: '#E1306C', youtube: '#FF0000', tiktok: '#00f2fe' };
-                const icons = { twitter: 'fa-twitter', instagram: 'fa-instagram', youtube: 'fa-youtube', tiktok: 'fa-tiktok' };
-                const c = colors[p.platform] || '#fff';
-                return `
-                <div class="flex items-center bg-black/80 rounded-full border border-white/10 overflow-hidden shadow-lg" style="${styleBase}">
-                    <div class="w-12 h-12 flex items-center justify-center" style="background:${c}">
-                        <i class="fa-brands ${icons[p.platform]} text-white text-xl"></i>
-                    </div>
-                    <div class="px-4 text-white font-bold tracking-wide truncate" style="font-size:${p.fontSize}px; font-family:${p.font}; text-shadow: 0 0 10px ${c}80">${p.username}</div>
-                </div>`;
-            }
-            if(w.type === 'alert') {
-                return `
-                <div class="relative flex items-center justify-center" style="${styleBase}">
-                    <div class="absolute inset-0 border-2 border-dashed border-white/20 rounded-xl flex items-center justify-center opacity-50"><span class="text-white/40 text-xs">Alert Area</span></div>
-                    <div id="alert-trigger-${w.id}" class="hidden flex-col items-center">
-                        <div class="w-24 h-24 rounded-full bg-black border-4 mb-4 flex items-center justify-center anim-pulse-soft" style="border-color:${p.color}; box-shadow:0 0 ${p.glow}px ${p.color}">
-                            <i class="fa-solid fa-star text-4xl" style="color:${p.color}"></i>
-                        </div>
-                        <h2 class="text-4xl font-black italic uppercase text-white" style="text-shadow:0 0 20px ${p.color}">NEW FOLLOWER!</h2>
-                    </div>
-                </div>`;
-            }
-            return '';
-        }
-
-        // --- RENDERING & ENGINE ---
-        function renderAll() {
-            DOM.canvas.innerHTML = '';
-            state.widgets.forEach(w => createWidgetNode(w));
-            if(state.selectedId) selectWidget(state.selectedId);
-            renderLayers();
-            updatePropsUI();
-        }
-
-        function renderLayers() {
-            DOM.layerList.innerHTML = '';
-            const reversed = [...state.widgets].reverse();
-            reversed.forEach(w => {
-                const isSel = w.id === state.selectedId;
-                const div = document.createElement('div');
-                div.className = `flex items-center justify-between p-2 rounded cursor-pointer text-xs ${isSel ? 'bg-nxs-primary/20 text-white' : 'hover:bg-white/5 text-nxs-muted'}`;
-                div.onclick = (e) => selectWidget(w.id, e);
-                div.innerHTML = `<span class="capitalize"><i class="fa-solid fa-layer-group mr-2 opacity-50"></i>${w.type}</span>`;
-                DOM.layerList.appendChild(div);
+            const params = new URLSearchParams({
+                mode: 'overlay',
+                yt: document.getElementById('inYt').value,
+                ig: document.getElementById('inIg').value,
+                tt: document.getElementById('inTt').value,
+                wmode: document.getElementById('inModeWidget').value,
+                gtitle: document.getElementById('inGoalTitle').value,
+                gcur: document.getElementById('inGoalCurrent').value,
+                gtar: document.getElementById('inGoalTarget').value,
+                api: document.getElementById('inApiKey').value,
+                chid: document.getElementById('inYtId').value,
+                marq: document.getElementById('inMarquee').value,
+                amsg: document.getElementById('inAlertMsg').value,
+                theme: document.getElementById('inTheme').value,
+                fx: document.getElementById('inParticles').value,
+                info: document.getElementById('inInfo').value,
+                psoc: document.getElementById('inPosSocial').value,
+                pgoal: document.getElementById('inPosGoal').value,
+                clock: document.getElementById('inShowClock').checked ? '1' : '0',
+                sfx: document.getElementById('inSfx').checked ? '1' : '0',
+                elist: document.getElementById('inEventList').checked ? '1' : '0',
+                ssoc: document.getElementById('inShowSoc').checked ? '1' : '0',
+                sgoal: document.getElementById('inShowGoal').checked ? '1' : '0',
+                salert: document.getElementById('inShowAlert').checked ? '1' : '0'
             });
+
+            const fullUrl = window.location.href.split('?')[0] + '?' + params.toString();
+
+            document.getElementById('outUrl').value = fullUrl;
+            document.getElementById('resultContainer').classList.remove('hidden');
+            document.getElementById('previewFrame').src = fullUrl;
         }
 
-        function createWidgetNode(w) {
-            let el = document.getElementById(w.id);
-            if(!el) {
-                el = document.createElement('div');
-                el.id = w.id;
-                el.className = 'widget-node';
-                el.innerHTML = `
-                    <div class="widget-inner w-full h-full pointer-events-none"></div>
-                    <div class="resize-handle resize-nw" data-dir="nw"></div>
-                    <div class="resize-handle resize-ne" data-dir="ne"></div>
-                    <div class="resize-handle resize-sw" data-dir="sw"></div>
-                    <div class="resize-handle resize-se" data-dir="se"></div>
-                `;
-                DOM.canvas.appendChild(el);
-                setupInteractions(el, w.id);
+        function copyLink() {
+            const copyText = document.getElementById('outUrl');
+            copyText.select();
+            document.execCommand('copy');
+            alert("Link kerenmu berhasil di-copy! Siap dipaste ke OBS Browser Source.");
+        }
+
+
+        function initParticles(type) {
+            if (type === 'none') return;
+            const canvas = document.getElementById('fxCanvas');
+            const ctx = canvas.getContext('2d');
+            let width, height;
+            let particles = [];
+
+            function resize() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
             }
-            el.style.left = w.x + 'px'; el.style.top = w.y + 'px';
-            el.style.width = w.w + 'px'; el.style.height = w.h + 'px';
-            el.querySelector('.widget-inner').innerHTML = getWidgetHTML(w);
-        }
+            window.addEventListener('resize', resize);
+            resize();
 
-        function updateWidgetDOM(id) {
-            const w = state.widgets.find(w => w.id === id);
-            if(w) createWidgetNode(w);
-        }
+            const particleCount = type === 'snow' ? 100 : 50;
 
-        // --- DRAG & RESIZE ENGINE ---
-        function setupInteractions(el, id) {
-            let mode = null; // 'drag' | 'nw' | 'ne' | 'sw' | 'se'
-            let startX, startY, initX, initY, initW, initH;
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    r: type === 'snow' ? Math.random() * 3 + 1 : Math.random() * 1.5 + 0.5,
+                    d: Math.random() * particleCount,
+                    speedY: type === 'snow' ? Math.random() * 1 + 0.5 : Math.random() * 0.2 + 0.1,
+                    speedX: type === 'snow' ? Math.random() * 1 - 0.5 : 0
+                });
+            }
 
-            el.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                selectWidget(id);
-                if(e.target.classList.contains('resize-handle')) {
-                    mode = e.target.getAttribute('data-dir');
-                } else {
-                    mode = 'drag';
-                }
-                
-                startX = e.clientX; startY = e.clientY;
-                const w = state.widgets.find(w => w.id === id);
-                initX = w.x; initY = w.y; initW = w.w; initH = w.h;
-                
-                const onMove = (ev) => {
-                    if(!mode) return;
-                    const dx = (ev.clientX - startX) / scale;
-                    const dy = (ev.clientY - startY) / scale;
-                    const wObj = state.widgets.find(w => w.id === id);
-
-                    if(mode === 'drag') {
-                        wObj.x = initX + dx; wObj.y = initY + dy;
-                    } else {
-                        // Resizing
-                        if(mode.includes('e')) wObj.w = Math.max(50, initW + dx);
-                        if(mode.includes('s')) wObj.h = Math.max(50, initH + dy);
-                        if(mode.includes('w')) {
-                            const newW = Math.max(50, initW - dx);
-                            if(newW > 50) { wObj.x = initX + dx; wObj.w = newW; }
-                        }
-                        if(mode.includes('n')) {
-                            const newH = Math.max(50, initH - dy);
-                            if(newH > 50) { wObj.y = initY + dy; wObj.h = newH; }
-                        }
+            function draw() {
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.beginPath();
+                for (let i = 0; i < particleCount; i++) {
+                    let p = particles[i];
+                    ctx.moveTo(p.x, p.y);
+                    if (type === 'snow') {
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2, true);
+                    } else if (type === 'stars') {
+                        // Twinkling stars
+                        ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.3})`;
+                        ctx.fillRect(p.x, p.y, p.r, p.r);
                     }
-                    
-                    // Direct DOM update for 60fps feel
-                    el.style.left = wObj.x + 'px'; el.style.top = wObj.y + 'px';
-                    el.style.width = wObj.w + 'px'; el.style.height = wObj.h + 'px';
-                };
-                
-                const onUp = () => {
-                    mode = null;
-                    window.removeEventListener('mousemove', onMove);
-                    window.removeEventListener('mouseup', onUp);
-                    updatePropsUI();
-                    saveState();
-                };
-                
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseup', onUp);
-            });
-        }
-
-        // --- PROPERTIES PANEL UI ---
-        function switchPropTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('tab-design').classList.add('hidden');
-            document.getElementById('tab-data').classList.add('hidden');
-            document.getElementById('tab-'+tab).classList.remove('hidden');
-        }
-
-        function updatePropsUI() {
-            if(!state.selectedId) {
-                DOM.propEmpty.classList.remove('hidden');
-                DOM.propPanel.classList.add('hidden');
-                return;
+                }
+                ctx.fill();
+                update();
             }
-            const w = state.widgets.find(w => w.id === state.selectedId);
-            if(!w) return;
 
-            DOM.propEmpty.classList.add('hidden');
-            DOM.propPanel.classList.remove('hidden');
+            function update() {
+                for (let i = 0; i < particleCount; i++) {
+                    let p = particles[i];
+                    p.y += p.speedY;
+                    p.x += p.speedX;
 
-            // Layout
-            document.getElementById('prop-x').value = Math.round(w.x);
-            document.getElementById('prop-y').value = Math.round(w.y);
-            document.getElementById('prop-w').value = Math.round(w.w);
-            document.getElementById('prop-h').value = Math.round(w.h);
+                    if (p.y > height) {
+                        particles[i] = { x: Math.random() * width, y: 0, r: p.r, d: p.d, speedY: p.speedY, speedX: p.speedX };
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
 
-            // Hide all prop groups first
-            const groups = ['color', 'bg', 'glow', 'radius', 'typography', 'fontsize'];
-            groups.forEach(g => document.getElementById(`prop-${g}-group`)?.classList.add('hidden'));
+        // --- EKSEKUSI OVERLAY (Saat diload) ---
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isOverlay = urlParams.get('mode') === 'overlay';
+
+            if (!isOverlay) {
+                loadData();
+                return; // Stop eksekusi jika bukan overlay
+            }
+
+            // Aktifkan Tampilan Overlay
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('overlayScreen').classList.remove('hidden');
+            document.getElementById('mainBody').classList.add('mode-overlay');
+
+            // Ambil Parameter
+            const dataYt = urlParams.get('yt') || 'MyChannel';
+            const dataIg = urlParams.get('ig') || '@myinsta';
+            const dataTt = urlParams.get('tt') || '@mytiktok';
+            const wMode = urlParams.get('wmode') || 'goal';
+            const gTitle = urlParams.get('gtitle') || 'Sub Goal';
+            const gCur = parseInt(urlParams.get('gcur')) || 0;
+            const gTar = parseInt(urlParams.get('gtar')) || 100;
+            const api = urlParams.get('api') || '';
+            const chId = urlParams.get('chid') || '';
+            const marquee = urlParams.get('marq') || '';
+            const alertMsg = urlParams.get('amsg') || 'Baru saja Subscribe!';
             
-            const dataGroups = ['text', 'goal', 'social', 'alert'];
-            dataGroups.forEach(g => document.getElementById(`data-${g}`)?.classList.add('hidden'));
+            // Parameter Baru
+            const themeKey = urlParams.get('theme') || 'pink';
+            const fxType = urlParams.get('fx') || 'none';
+            const infoText = urlParams.get('info') || '';
+            const posSoc = urlParams.get('psoc') || 'bl';
+            const posGoal = urlParams.get('pgoal') || 'br';
+            const showClock = urlParams.get('clock') === '1';
+            const showSfx = urlParams.get('sfx') === '1';
+            const showElist = urlParams.get('elist') === '1';
+            const showSocWidget = urlParams.get('ssoc') !== '0'; // Default nyala
+            const showGoalWidget = urlParams.get('sgoal') !== '0'; // Default nyala
+            const showPopAlert = urlParams.get('salert') !== '0'; // Default nyala
 
-            // Opacity (always visible)
-            document.getElementById('prop-opacity').value = w.props.opacity;
-            document.getElementById('val-opacity').innerText = Math.round(w.props.opacity*100)+'%';
+            // 0. TERAPKAN TEMA WARNA & EFEK
+            const activeTheme = themeConfig[themeKey];
+            
+            // Apply ke Gradient Class
+            document.querySelectorAll('.theme-gradient').forEach(el => {
+                el.classList.add('bg-gradient-to-r', activeTheme.gradient[0], activeTheme.gradient[1]);
+            });
+            // Apply ke Text Class
+            document.querySelectorAll('.theme-text').forEach(el => {
+                el.classList.add(activeTheme.text);
+            });
+            // Apply ke Border & Shadow
+            document.querySelectorAll('.theme-border').forEach(el => {
+                el.classList.add(activeTheme.border);
+            });
+            document.querySelectorAll('.theme-shadow').forEach(el => {
+                el.classList.add(activeTheme.shadow);
+            });
 
-            // Conditional Design Props
-            if(w.props.color !== undefined) {
-                document.getElementById('prop-color-group').classList.remove('hidden');
-                document.getElementById('prop-color').value = w.props.color;
-                document.getElementById('prop-color-hex').value = w.props.color;
+            // Inisialisasi Particle Effects
+            initParticles(fxType);
+
+            // 0.5 TERAPKAN POSISI WIDGET (LAYOUT DRAG & DROP SIMULASI)
+            const positionMap = {
+                'bl': ['bottom-8', 'left-8'],
+                'br': ['bottom-8', 'right-8'],
+                'tl': ['top-28', 'left-8'],
+                'tr': ['top-56', 'right-8'], // top-56 agar aman dari jam dan event list
+                'ml': ['top-1/2', '-translate-y-1/2', 'left-8'],
+                'mr': ['top-1/2', '-translate-y-1/2', 'right-8']
+            };
+            
+            const wSocial = document.getElementById('widgetSocial');
+            wSocial.classList.add(...(positionMap[posSoc] || positionMap['bl']));
+            
+            const wGoal = document.getElementById('widgetGoal');
+            wGoal.classList.add(...(positionMap[posGoal] || positionMap['br']));
+
+            // TERAPKAN VISIBILITAS (HIDE JIKA DINONAKTIFKAN)
+            if (!showSocWidget) wSocial.classList.add('hidden');
+            if (!showGoalWidget) wGoal.classList.add('hidden');
+
+            // 1. Setup Jam Digital
+            if (showClock) {
+                const clockWidget = document.getElementById('clockWidget');
+                const clockText = document.getElementById('clockText');
+                clockWidget.classList.remove('hidden');
+                
+                setInterval(() => {
+                    const now = new Date();
+                    clockText.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
+                }, 1000);
             }
-            if(w.props.bgColor !== undefined) {
-                document.getElementById('prop-bg-group').classList.remove('hidden');
-                document.getElementById('prop-bg').value = w.props.bgColor.substring(0,7);
+
+            // 1b. Setup Info Game & Event List
+            if (infoText.trim() !== '') {
+                document.getElementById('outInfoText').textContent = infoText;
+                document.getElementById('infoWidget').classList.remove('hidden');
             }
-            if(w.props.glow !== undefined) {
-                document.getElementById('prop-glow-group').classList.remove('hidden');
-                document.getElementById('prop-glow').value = w.props.glow;
-                document.getElementById('val-glow').innerText = w.props.glow+'px';
+            if (showElist) {
+                document.getElementById('eventListWidget').classList.remove('hidden');
             }
-            if(w.props.borderRadius !== undefined) {
-                document.getElementById('prop-radius-group').classList.remove('hidden');
-                document.getElementById('prop-radius').value = w.props.borderRadius;
-                document.getElementById('val-radius').innerText = w.props.borderRadius+'px';
+
+            // 2. Setup Running Text
+            if(marquee.trim() !== '') {
+                document.getElementById('outMarquee').textContent = marquee;
+                document.getElementById('marqueeWrapper').classList.remove('hidden');
             }
-            if(w.props.font !== undefined) {
-                document.getElementById('prop-typography').classList.remove('hidden');
-                document.getElementById('prop-font').value = w.props.font;
-                if(w.props.fontSize !== undefined) {
-                    document.getElementById('prop-fontsize-group').classList.remove('hidden');
-                    document.getElementById('prop-fontsize').value = w.props.fontSize;
-                    document.getElementById('val-fontsize').innerText = w.props.fontSize+'px';
+
+            // 3. Setup Social Rotator
+            const socials = [
+                { icon: 'fa-youtube', color: 'from-red-600 to-red-500', text: dataYt },
+                { icon: 'fa-instagram', color: 'from-pink-600 to-orange-500', text: dataIg },
+                { icon: 'fa-tiktok', color: 'from-gray-800 to-black', text: dataTt }
+            ];
+            let socIndex = 0;
+            const socIcon = document.getElementById('socIcon');
+            const socText = document.getElementById('socText');
+
+            setInterval(() => {
+                socText.classList.remove('rotate-text-enter');
+                socText.classList.add('rotate-text-exit');
+                setTimeout(() => {
+                    socIndex = (socIndex + 1) % socials.length;
+                    const s = socials[socIndex];
+                    socIcon.innerHTML = `<i class="fab ${s.icon} text-white"></i>`;
+                    socIcon.className = `w-10 h-10 rounded-full bg-gradient-to-tr ${s.color} flex items-center justify-center text-xl transition-all duration-500`;
+                    socText.textContent = s.text;
+                    socText.classList.remove('rotate-text-exit');
+                    socText.classList.add('rotate-text-enter');
+                }, 500);
+            }, 8000);
+
+            // 4. Setup Goal / Live Widget (Disesuaikan warnanya)
+            if (wMode === 'goal') {
+                document.getElementById('outGoalTitle').textContent = gTitle;
+                document.getElementById('outGoalCurrent').textContent = gCur;
+                document.getElementById('outGoalTarget').textContent = gTar;
+                const percentage = Math.min((gCur / gTar) * 100, 100);
+                document.getElementById('outGoalBar').style.width = `${percentage}%`;
+            } else if (wMode === 'live') {
+                document.getElementById('goalSlash').classList.add('hidden');
+                document.getElementById('outGoalTarget').classList.add('hidden');
+                document.getElementById('goalBarContainer').classList.add('hidden');
+                let currentVisualSubs = 0;
+
+                const animateNumber = (newNumber) => {
+                    if (newNumber !== currentVisualSubs && currentVisualSubs !== 0) {
+                        const el = document.getElementById('outGoalCurrent');
+                        el.classList.remove('pop-anim');
+                        void el.offsetWidth;
+                        el.classList.add('pop-anim');
+                    }
+                    currentVisualSubs = newNumber;
+                    document.getElementById('outGoalCurrent').textContent = newNumber.toLocaleString('id-ID');
+                };
+
+                if (api && chId) {
+                    document.getElementById('outGoalTitle').textContent = "Live Subscribers";
+                    document.getElementById('outGoalCurrent').textContent = "Loading...";
+                    const fetchSubs = async () => {
+                        try {
+                            const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${chId}&key=${api}`);
+                            const data = await res.json();
+                            if(data.error) {
+                                document.getElementById('outGoalCurrent').textContent = "API Error";
+                                document.getElementById('outGoalCurrent').className = 'text-red-500 text-sm bg-red-900/50 px-2 rounded';
+                                return;
+                            }
+                            if(data.items && data.items.length > 0) {
+                                const subs = parseInt(data.items[0].statistics.subscriberCount);
+                                animateNumber(subs);
+                                document.getElementById('outGoalCurrent').className = `${activeTheme.text} transition-all duration-300 inline-block`;
+                            } else {
+                                document.getElementById('outGoalCurrent').textContent = "ID Channel Salah";
+                                document.getElementById('outGoalCurrent').className = 'text-yellow-400 text-sm';
+                            }
+                        } catch (e) { 
+                            document.getElementById('outGoalCurrent').textContent = "Koneksi Putus";
+                        }
+                    };
+                    fetchSubs();
+                    setInterval(fetchSubs, 60000);
+                } else {
+                    document.getElementById('outGoalTitle').textContent = "Live Subs (DEMO)";
+                    document.getElementById('outGoalTitle').className = "text-xs font-bold text-yellow-500 uppercase tracking-wider";
+                    let demoSubs = 15420;
+                    animateNumber(demoSubs);
+                    setInterval(() => {
+                        demoSubs += Math.floor(Math.random() * 3) + 1;
+                        animateNumber(demoSubs);
+                    }, Math.random() * 15000 + 10000);
                 }
             }
 
-            // Conditional Data Props
-            if(w.type === 'text') {
-                document.getElementById('data-text').classList.remove('hidden');
-                document.getElementById('prop-text').value = w.props.text;
-            }
-            if(w.type === 'goal') {
-                document.getElementById('data-goal').classList.remove('hidden');
-                document.getElementById('prop-title').value = w.props.title;
-                document.getElementById('prop-current').value = w.props.current;
-                document.getElementById('prop-target').value = w.props.target;
-            }
-            if(w.type === 'social') {
-                document.getElementById('data-social').classList.remove('hidden');
-                document.getElementById('prop-platform').value = w.props.platform;
-                document.getElementById('prop-username').value = w.props.username;
-            }
-            if(w.type === 'alert') {
-                document.getElementById('data-alert').classList.remove('hidden');
-            }
-        }
+            // 5. Setup Alert Simulasi Kustom & Suara
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const playAlertSound = () => {
+                if (!showSfx) return;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                // Efek Suara "Ting!" yang elegan
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now); // Nada A5
+                osc.frequency.exponentialRampToValueAtTime(1760, now + 0.1); // Melengking ke A6
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.3, now + 0.05); // Fade in cepat
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5); // Fade out pelan
+                
+                osc.start(now);
+                osc.stop(now + 0.5);
+            };
 
-        function updateSelected(key, val) {
-            if(!state.selectedId) return;
-            state.widgets.find(w => w.id === state.selectedId)[key] = parseFloat(val);
-            updateWidgetDOM(state.selectedId);
-            saveState();
-        }
+            const triggerAlert = () => {
+                const box = document.getElementById('alertBox');
+                const names = ['Ahmad', 'BudiGaming', 'Siti_99', 'JohnDoe', 'ProPlayer21'];
+                const randomName = names[Math.floor(Math.random() * names.length)];
+                
+                document.getElementById('alertName').textContent = randomName;
+                document.getElementById('alertDesc').textContent = alertMsg;
 
-        function updateSelectedProp(key, val) {
-            if(!state.selectedId) return;
-            const numKeys = ['glow', 'fontSize', 'opacity', 'borderRadius', 'current', 'target'];
-            if(numKeys.includes(key)) val = parseFloat(val);
-            
-            state.widgets.find(w => w.id === state.selectedId).props[key] = val;
-            updateWidgetDOM(state.selectedId);
-            saveState();
-        }
+                const msgLower = alertMsg.toLowerCase();
+                const iconContainer = document.getElementById('alertIcon');
+                
+                // Tema Warna Ikon Mengikuti Tema Utama
+                const iconTextColors = {
+                    pink: 'text-pink-600', blue: 'text-blue-600', 
+                    green: 'text-emerald-600', red: 'text-red-600'
+                };
+                let currentIconColor = iconTextColors[themeKey];
 
-        // --- SPECIFIC FEATURES ---
-        function triggerAlert() {
-            if(!state.selectedId) return;
-            const anim = document.getElementById(`alert-trigger-${state.selectedId}`);
-            if(anim) {
-                anim.classList.remove('hidden');
-                anim.classList.add('flex');
+                if(msgLower.includes('donasi') || msgLower.includes('donate')) {
+                    iconContainer.innerHTML = '<i class="fas fa-coins"></i>';
+                    currentIconColor = 'text-yellow-500'; // Override khusus koin
+                } else if(msgLower.includes('follow')) {
+                    iconContainer.innerHTML = '<i class="fas fa-heart"></i>';
+                } else {
+                    iconContainer.innerHTML = '<i class="fab fa-youtube"></i>';
+                }
+                
+                iconContainer.className = `bg-white ${currentIconColor} rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-inner`;
+
+                box.classList.remove('hidden', 'alert-pop');
+                void box.offsetWidth; 
+                box.classList.add('alert-pop');
+                
+                playAlertSound(); // Mainkan SFX
+            };
+
+            // Hanya jalankan loop Notifikasi Alert jika diaktifkan
+            if (showPopAlert) {
                 setTimeout(() => {
-                    anim.classList.add('hidden');
-                    anim.classList.remove('flex');
-                }, 4000);
+                    triggerAlert();
+                    setInterval(triggerAlert, Math.random() * 30000 + 45000);
+                }, 5000);
             }
-        }
-
-        function startClockLoop() {
-            setInterval(() => {
-                const now = new Date();
-                const str = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
-                document.querySelectorAll('.clock-val').forEach(el => el.innerText = str);
-            }, 1000);
-        }
-
-        function simulateAIGeneration() {
-            const btn = event.target;
-            const input = document.getElementById('ai-prompt').value;
-            if(!input) return showToast('Please enter a prompt', 'info');
-            
-            btn.innerText = 'Thinking...';
-            setTimeout(() => {
-                state.widgets = [];
-                // Add Cyberpunk theme defaults
-                addWidget('webcam');
-                addWidget('social');
-                addWidget('goal');
-                
-                // Customize them via code to simulate AI
-                state.widgets[0].x = 50; state.widgets[0].y = 50; // webcam
-                state.widgets[1].x = 50; state.widgets[1].y = 300; state.widgets[1].props.color = '#00e5ff'; // social
-                state.widgets[2].x = 50; state.widgets[2].y = 950; state.widgets[2].props.color = '#ff0055'; // goal
-                
-                renderAll();
-                saveState();
-                btn.innerText = 'Generate';
-                document.getElementById('ai-prompt').value = '';
-                showToast('Cyberpunk layout generated successfully!');
-                centerCanvas();
-            }, 1500);
-        }
-
-        // --- OBS MODAL ---
-        function openObsModal() {
-            const m = document.getElementById('obs-modal');
-            const mc = document.getElementById('obs-modal-content');
-            m.classList.remove('hidden');
-            // Animate in
-            requestAnimationFrame(() => {
-                m.classList.remove('opacity-0');
-                mc.classList.remove('scale-95');
-            });
-        }
-
-        function closeObsModal() {
-            const m = document.getElementById('obs-modal');
-            const mc = document.getElementById('obs-modal-content');
-            m.classList.add('opacity-0');
-            mc.classList.add('scale-95');
-            setTimeout(() => m.classList.add('hidden'), 200);
-        }
-
-        function copyToClipboard(id) {
-            const text = document.getElementById(id).innerText;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('URL Copied to clipboard!');
-            });
-        }
-
-        // Boot
-        window.onload = init;
+        };
     </script>
 </body>
 </html>
