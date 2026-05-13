@@ -145,6 +145,10 @@
                                 <option value="stars">Bintang Melayang</option>
                             </select>
                         </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs text-gray-400 mb-1">Label Status Stream (Kiri Atas)</label>
+                            <input type="text" id="inInfo" value="🎮 Valorant Live" class="w-full bg-gray-800 rounded p-2 text-sm border border-gray-600 focus:border-pink-500 focus:outline-none">
+                        </div>
                     </div>
                 </div>
 
@@ -217,9 +221,19 @@
                 <div class="p-4 bg-gray-900/50 rounded-xl border border-gray-700">
                     <h3 class="font-bold text-lg mb-3 border-b border-gray-700 pb-2"><i class="fas fa-star mr-2 text-yellow-400"></i>Ekstra Fitur</h3>
                     <div class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="inShowClock" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
-                            <label class="text-sm font-semibold text-gray-200">Tampilkan Jam Digital di Layar</label>
+                        <div class="flex flex-wrap gap-4">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="inShowClock" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                                <label class="text-sm font-semibold text-gray-200">Jam Digital</label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="inSfx" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                                <label class="text-sm font-semibold text-gray-200">Suara Alert (SFX)</label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="inEventList" class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500 bg-gray-700 border-gray-600" checked>
+                                <label class="text-sm font-semibold text-gray-200">Daftar Event (Kanan Atas)</label>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Running Text (Kosongkan jika tidak mau)</label>
@@ -268,6 +282,35 @@
         
         <!-- Canvas untuk Efek Partikel -->
         <canvas id="fxCanvas"></canvas>
+
+        <!-- INFO WIDGET (Kiri Atas) -->
+        <div id="infoWidget" class="obs-widget top-10 left-8 hidden">
+            <div class="glass-panel-overlay px-4 py-2 flex items-center gap-3 theme-border shadow-lg">
+                <span class="relative flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                <span id="outInfoText" class="font-poppins font-bold text-lg text-white tracking-wide"></span>
+            </div>
+        </div>
+
+        <!-- EVENT LIST (Kanan Atas, Bawah Jam) -->
+        <div id="eventListWidget" class="obs-widget top-28 right-8 hidden flex flex-col gap-2 opacity-90">
+            <div class="glass-panel-overlay px-4 py-2 flex items-center justify-between gap-4 theme-border shadow-md">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-star theme-text text-sm"></i>
+                    <span class="text-xs text-gray-300 uppercase tracking-wider font-bold">Latest Sub</span>
+                </div>
+                <span class="font-bold text-sm text-white">AlexGaming</span>
+            </div>
+            <div class="glass-panel-overlay px-4 py-2 flex items-center justify-between gap-4 border-yellow-500/30 border-2 shadow-md bg-gray-900/80 rounded-xl">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-coins text-yellow-400 text-sm"></i>
+                    <span class="text-xs text-gray-300 uppercase tracking-wider font-bold">Top Dono</span>
+                </div>
+                <span class="font-bold text-sm text-white">Sultan99 - Rp100rb</span>
+            </div>
+        </div>
 
         <!-- Running Text (Marquee) -->
         <div id="marqueeWrapper" class="marquee-container hidden">
@@ -363,25 +406,29 @@
 
         // --- LOGIKA DASHBOARD (LOAD & SAVE) ---
         function loadData() {
-            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles'];
+            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles', 'inInfo'];
             fields.forEach(field => {
                 if(localStorage.getItem(field)) document.getElementById(field).value = localStorage.getItem(field);
             });
             
             // Checkbox khusus
-            if(localStorage.getItem('inShowClock') !== null) {
-                document.getElementById('inShowClock').checked = localStorage.getItem('inShowClock') === 'true';
-            }
+            ['inShowClock', 'inSfx', 'inEventList'].forEach(id => {
+                if(localStorage.getItem(id) !== null) {
+                    document.getElementById(id).checked = localStorage.getItem(id) === 'true';
+                }
+            });
 
             toggleWidgetMode();
         }
 
         function saveData() {
-            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles'];
+            const fields = ['inYt', 'inIg', 'inTt', 'inModeWidget', 'inGoalTitle', 'inGoalCurrent', 'inGoalTarget', 'inYtId', 'inApiKey', 'inMarquee', 'inAlertMsg', 'inTheme', 'inParticles', 'inInfo'];
             fields.forEach(field => {
                 localStorage.setItem(field, document.getElementById(field).value);
             });
-            localStorage.setItem('inShowClock', document.getElementById('inShowClock').checked);
+            ['inShowClock', 'inSfx', 'inEventList'].forEach(id => {
+                localStorage.setItem(id, document.getElementById(id).checked);
+            });
         }
 
         function toggleWidgetMode() {
@@ -413,7 +460,10 @@
                 amsg: document.getElementById('inAlertMsg').value,
                 theme: document.getElementById('inTheme').value,
                 fx: document.getElementById('inParticles').value,
-                clock: document.getElementById('inShowClock').checked ? '1' : '0'
+                info: document.getElementById('inInfo').value,
+                clock: document.getElementById('inShowClock').checked ? '1' : '0',
+                sfx: document.getElementById('inSfx').checked ? '1' : '0',
+                elist: document.getElementById('inEventList').checked ? '1' : '0'
             });
 
             const fullUrl = window.location.href.split('?')[0] + '?' + params.toString();
@@ -525,7 +575,10 @@
             // Parameter Baru
             const themeKey = urlParams.get('theme') || 'pink';
             const fxType = urlParams.get('fx') || 'none';
+            const infoText = urlParams.get('info') || '';
             const showClock = urlParams.get('clock') === '1';
+            const showSfx = urlParams.get('sfx') === '1';
+            const showElist = urlParams.get('elist') === '1';
 
             // 0. TERAPKAN TEMA WARNA & EFEK
             const activeTheme = themeConfig[themeKey];
@@ -559,6 +612,15 @@
                     const now = new Date();
                     clockText.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
                 }, 1000);
+            }
+
+            // 1b. Setup Info Game & Event List
+            if (infoText.trim() !== '') {
+                document.getElementById('outInfoText').textContent = infoText;
+                document.getElementById('infoWidget').classList.remove('hidden');
+            }
+            if (showElist) {
+                document.getElementById('eventListWidget').classList.remove('hidden');
             }
 
             // 2. Setup Running Text
@@ -653,7 +715,30 @@
                 }
             }
 
-            // 5. Setup Alert Simulasi Kustom
+            // 5. Setup Alert Simulasi Kustom & Suara
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const playAlertSound = () => {
+                if (!showSfx) return;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                // Efek Suara "Ting!" yang elegan
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now); // Nada A5
+                osc.frequency.exponentialRampToValueAtTime(1760, now + 0.1); // Melengking ke A6
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.3, now + 0.05); // Fade in cepat
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5); // Fade out pelan
+                
+                osc.start(now);
+                osc.stop(now + 0.5);
+            };
+
             const triggerAlert = () => {
                 const box = document.getElementById('alertBox');
                 const names = ['Ahmad', 'BudiGaming', 'Siti_99', 'JohnDoe', 'ProPlayer21'];
@@ -686,6 +771,8 @@
                 box.classList.remove('hidden', 'alert-pop');
                 void box.offsetWidth; 
                 box.classList.add('alert-pop');
+                
+                playAlertSound(); // Mainkan SFX
             };
 
             setTimeout(() => {
